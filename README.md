@@ -8,6 +8,8 @@
 
 # @fast-china/utils
 
+**[Documentation](http://docs.fastdotnet.cn/utils/) · [Official website](http://fastdotnet.com)**
+
 Browser-first TypeScript utilities for modern browsers, WebViews, Vue 3, and uni-app.
 
 [![npm version](https://img.shields.io/npm/v/@fast-china/utils?color=orange)](https://www.npmjs.com/package/@fast-china/utils) [![node](https://img.shields.io/badge/node-%5E22.18%20%7C%7C%20%5E24.18-brightgreen)](https://nodejs.org/) [![vue](https://img.shields.io/badge/vue-%5E3.5.11-42b883)](https://vuejs.org/) [![license](https://img.shields.io/npm/l/@fast-china/utils)](./LICENSE)
@@ -63,93 +65,27 @@ The active global configuration is immutable. Repeating the same configuration i
 
 ## Base64
 
-Prefer the UTF-8 or Base64URL APIs in new code:
-
-```ts
-import { decodeBase64, encodeBase64, encodeBase64Url } from "@fast-china/utils";
-
-const encoded = encodeBase64('{"name":"Fast utilities"}');
-const decoded = decodeBase64(encoded);
-decoded;
-decoded.parseJson<{ name: string }>();
-encodeBase64Url("path/value");
-```
-
-`encodeSecureBase64` and `decodeSecureBase64` exist only for the legacy dictionary format. Given the same default six-character prefix, valid legacy payloads remain byte-for-byte identical. A historical Base64-length 101–124 dictionary gap uses a one-character fallback that the legacy removal flow understands. This format is not encryption and must not protect passwords, tokens, or other secrets.
+[Full configuration and examples](http://docs.fastdotnet.cn/utils/guide.en)
 
 ## Copy text
 
-```ts
-import { copy } from "@fast-china/utils";
-
-await copy("Fast utilities");
-```
-
-uni-app uses `setClipboardData`. Browsers prefer the Clipboard API and fall back to the legacy browser copy capability when it is unavailable. Unsupported platforms and denied clipboard access throw errors.
+[Full configuration and examples](http://docs.fastdotnet.cn/utils/guide.en)
 
 ## Identity
 
-```ts
-import { configureInstallationIdentity, getOrCreateInstallationId } from "@fast-china/utils";
-
-configureInstallationIdentity({ cacheKey: "account:installation-id" });
-
-const installationId = getOrCreateInstallationId();
-```
-
-Call `configureInstallationIdentity` in the application entry before first use. The default business key is `identity:installation-id`; repeated identical configuration is idempotent and conflicting configuration throws. Installation Identity UUID generation prefers Web Crypto and falls back to `Math.random()` when unavailable.
+[Full configuration and examples](http://docs.fastdotnet.cn/utils/guide.en)
 
 ## Logger
 
-The default `logger` works without construction and has a minimum level of `debug`. Enable split mode at application startup when uni-app App-Plus needs HBuilderX-compatible object output:
-
-```ts
-import { configureLogger, logger } from "@fast-china/utils";
-
-configureLogger({ uniAppPlusSplit: true });
-logger.log("Launch", { code: 200, data: { id: 1 } });
-logger.error("Request", "request failed", error);
-```
-
-Log messages are optional, so objects, arrays, errors, and other values may be passed directly. Normal runtimes preserve the original values; App-Plus
-split mode converts additional values into readable text one at a time. Use `createLogger` for an isolated configuration unaffected by the default Logger.
+[Full configuration and examples](http://docs.fastdotnet.cn/utils/guide.en)
 
 ## Crypto
 
-The TypeScript Crypto API mirrors the public methods and algorithm casing of .NET `CryptoUtil`. AES-GCM payloads, password-based AES payloads, PBKDF2 password hashes, and PEM keys interoperate across both implementations.
-
-```ts
-import { AESDecryptWithPassword, AESEncryptWithPassword } from "@fast-china/utils";
-
-const payload = await AESEncryptWithPassword("protected content", "correct horse battery staple");
-const plaintext = await AESDecryptWithPassword(payload, "correct horse battery staple");
-plaintext;
-
-const jsonPayload = await AESEncryptWithPassword('{"id":1}', "correct horse battery staple");
-const result = (await AESDecryptWithPassword(jsonPayload, "correct horse battery staple")).parseJson<{ id: number }>();
-```
-
-Base64 and Crypto text decoding/decryption functions return the primitive-string `DecodedText` type, which can be used directly as a `string`; an explicit `.parseJson<T = any>()` call attempts JSON parsing and returns the original string when parsing fails. The first text decode lazily installs a non-enumerable `String.prototype.parseJson`; a foreign method with the same name causes an explicit conflict error. The generic type does not validate untrusted JSON or guarantee an object result at runtime.
-
-Store passwords with `HashPasswordPBKDF2SHA256` and `VerifyPasswordPBKDF2SHA256`. MD5, SHA-1, AES-CBC, and AES-ECB do not provide password-storage or authenticated-encryption guarantees. See the [API reference](./docs/API.md#crypto) for the complete method list and security boundaries.
-
-CryptoJS is bundled into the ESM and CDN artifacts for the compatibility hash and AES APIs. Consumers do not install or resolve `crypto-js` subpaths; applications that do not use Crypto APIs can still remove the independent crypto module through Tree Shaking.
+[Full configuration and examples](http://docs.fastdotnet.cn/utils/guide.en)
 
 ## Vue 3
 
-```ts
-import { useBreakpoints, useElementSize, useEventListener, useNow, useWindowSize } from "@fast-china/utils";
-import { useTemplateRef } from "vue";
-
-const elementRef = useTemplateRef<HTMLElement>("element");
-const { width: windowWidth } = useWindowSize();
-const { width: elementWidth } = useElementSize(elementRef);
-const now = useNow();
-const breakpoints = useBreakpoints({ desktop: 1280, mobile: 0, tablet: 768 });
-useEventListener(document, "visibilitychange", () => console.log(document.visibilityState));
-```
-
-The package provides lightweight native-backed browser composables, Vue 3 `app.use()` registration, typed props/emits/slots, and TSX rendering. Browser composables clean up with the current Vue scope; advanced scheduling, controls, SSR configuration, and device APIs remain outside this package. Vue remains external to the build and is required as a peer dependency.
+[Full configuration and examples](http://docs.fastdotnet.cn/utils/guide.en)
 
 ## Modules
 
@@ -170,8 +106,8 @@ The `object` module includes dependency-free deep cloning and equality plus pred
 
 ## Documentation
 
-- [API reference](./docs/API.md)
-- [Runtime contract](./docs/RUNTIME_CONTRACT.md)
+- [API reference](http://docs.fastdotnet.cn/utils/api.en)
+- [Runtime contract](http://docs.fastdotnet.cn/utils/runtime-contract)
 - [Development and release guide (Chinese)](./docs/DEVELOPMENT_RELEASE.zh-CN.md)
 - [Security policy](./SECURITY.md)
 - [Contributing guide](./CONTRIBUTING.md)
