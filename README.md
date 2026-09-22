@@ -1,18 +1,20 @@
-<p align="left">
-	<a href="./README.zh.md">简体中文</a> | <strong>English</strong>
-</p>
+[简体中文](./README.zh.md) | **English**
 
 <p align="center">
-	<img src="./Fast.png" alt="logo" width="160" />
+	<img src="./Fast.png" width="128" alt="Fast.Utils Logo" />
 </p>
 
-# @fast-china/utils
+<h1 align="center">Fast.Utils</h1>
 
-**[Documentation](http://docs.fastdotnet.cn/utils/) · [Official website](http://fastdotnet.com)**
+<p align="center">
+	<a href="https://www.npmjs.com/package/@fast-china/utils"><img src="https://img.shields.io/npm/v/@fast-china/utils?logo=npm" alt="npm version" /></a>
+	<a href="https://www.npmjs.com/package/@fast-china/utils"><img src="https://img.shields.io/npm/dm/@fast-china/utils" alt="npm downloads" /></a>
+	<a href="./LICENSE"><img src="https://img.shields.io/npm/l/@fast-china/utils" alt="License" /></a>
+</p>
 
-Browser-first TypeScript utilities for modern browsers, WebViews, Vue 3, and uni-app.
+A TypeScript utility SDK for modern browsers, WebViews, Vue 3 and uni-app.
 
-[![npm version](https://img.shields.io/npm/v/@fast-china/utils?color=orange)](https://www.npmjs.com/package/@fast-china/utils) [![node](https://img.shields.io/badge/node-%5E22.18%20%7C%7C%20%5E24.18-brightgreen)](https://nodejs.org/) [![vue](https://img.shields.io/badge/vue-%5E3.5.11-42b883)](https://vuejs.org/) [![license](https://img.shields.io/npm/l/@fast-china/utils)](./LICENSE)
+**[Documentation](http://docs.fastdotnet.cn/en-US/frontend/utils/) · [Official website](http://fastdotnet.com)**
 
 ## Highlights
 
@@ -29,69 +31,45 @@ pnpm add @fast-china/utils
 
 ### CDN
 
-The `unpkg` and `jsdelivr` fields select the minified `dist/index.global.min.js` browser file, which exposes the `FastUtils` global.
+The jsDelivr entry uses the minified `dist/index.global.min.js` browser file, which exposes the `FastUtils` global.
 
-## Storage
+| Resource                                     | jsDelivr                                                                            | unpkg                                                                 |
+| -------------------------------------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `vue@3.5.11/dist/vue.global.prod.js`         | [jsDelivr](https://cdn.jsdelivr.net/npm/vue@3.5.11/dist/vue.global.prod.js)         | [unpkg](https://unpkg.com/vue@3.5.11/dist/vue.global.prod.js)         |
+| `@fast-china/utils/dist/index.global.min.js` | [jsDelivr](https://cdn.jsdelivr.net/npm/@fast-china/utils/dist/index.global.min.js) | [unpkg](https://unpkg.com/@fast-china/utils/dist/index.global.min.js) |
 
-`Local` and `Session` work without configuration. The default prefix is `fast__`, values use JSON, and entries do not expire unless a TTL is supplied:
+## Quick start
 
-```ts
-import { Local, Session } from "@fast-china/utils";
-
-Local.set("user", { id: 1 }, { ttlMs: 30 * 60 * 1000 });
-const user = Local.get<{ id: number }>("user");
-
-Local.set("private-user", { id: 2 }, { crypto: true });
-const privateUser = Local.get<{ id: number }>("private-user", { crypto: true });
-
-Session.set("redirect", "/home");
-const redirect = Session.get("redirect"); // string | undefined
-```
-
-`get<Value = string>()` returns `string | undefined` when its generic is omitted, so string values require no type argument. Storage codecs still deserialize JSON at runtime; pass an explicit generic for an accurate type when the stored value is an object, array, or another non-string value.
-
-Call `configureStorage` before the first Storage operation only when overriding defaults. The legacy-compatible `crypto` option applies reversible Base64 obfuscation; it is not encryption and must not protect secrets:
+The default namespace is `fast__`; store and retrieve business data with an optional TTL:
 
 ```ts
-import { configureStorage } from "@fast-china/utils";
+import { Local } from "@fast-china/utils";
 
-configureStorage({
-	prefix: "my-app:",
-	crypto: true,
-});
+Local.set("profile", { name: "Fast" }, { ttlMs: 30 * 60 * 1000 });
+const profile = Local.get<{ name: string }>("profile");
+console.log(profile?.name);
 ```
 
-The active global configuration is immutable. Repeating the same configuration is idempotent; a conflicting configuration throws. The `crypto` option on `set/get` overrides only that operation and must match when writing and reading the same entry; it does not mutate global configuration. A custom `codec` may be supplied instead of global `crypto`. In uni-app, `Local` automatically resolves the runtime-injected `uni` object and uses its synchronous Storage API; `Session` throws because uni-app has no sessionStorage equivalent. `clear()` removes only keys inside the active prefix.
+Without a TTL, entries do not expire. Configure a custom namespace or codec before the first storage operation. The legacy `crypto` option is Base64 obfuscation, not encryption. uni-app supports `Local`, not `Session`.
 
-## Base64
+## Common usage
 
-[Full configuration and examples](http://docs.fastdotnet.cn/utils/guide.en)
+Import utilities by name from the package root:
 
-## Copy text
+```ts
+import { encodeBase64, formatBytes, sleep } from "@fast-china/utils";
 
-[Full configuration and examples](http://docs.fastdotnet.cn/utils/guide.en)
+const encoded = encodeBase64("Fast");
+const size = formatBytes(1536);
+await sleep(100);
+console.log(encoded, size);
+```
 
-## Identity
-
-[Full configuration and examples](http://docs.fastdotnet.cn/utils/guide.en)
-
-## Logger
-
-[Full configuration and examples](http://docs.fastdotnet.cn/utils/guide.en)
-
-## Crypto
-
-[Full configuration and examples](http://docs.fastdotnet.cn/utils/guide.en)
-
-## Vue 3
-
-[Full configuration and examples](http://docs.fastdotnet.cn/utils/guide.en)
+Parameter validation or a pre-aborted signal may throw synchronously; cancellation during the wait rejects the returned Promise.
 
 ## Modules
 
 `@fast-china/utils` is the only public entry and exposes every API as a named export. Source modules remain separate in `dist/` so modern bundlers can remove unused exports; those internal files are not public package subpaths.
-
-Historical aggregate objects are not public. Supported behavior is exposed through named functions, improving auto-imports and Tree Shaking; this major version does not preserve every former convenience method.
 
 The `object` module includes dependency-free deep cloning and equality plus predicate-based property selection. Array utilities include a SameValueZero symmetric difference, while `once` preserves the first return value, Promise identity, or synchronous error.
 
@@ -106,8 +84,8 @@ The `object` module includes dependency-free deep cloning and equality plus pred
 
 ## Documentation
 
-- [API reference](http://docs.fastdotnet.cn/utils/api.en)
-- [Runtime contract](http://docs.fastdotnet.cn/utils/runtime-contract)
+- [API reference](http://docs.fastdotnet.cn/en-US/frontend/utils/api/)
+- [Runtime contract](http://docs.fastdotnet.cn/en-US/frontend/utils/runtime-contract)
 - [Development and release guide (Chinese)](./docs/DEVELOPMENT_RELEASE.zh-CN.md)
 - [Security policy](./SECURITY.md)
 - [Contributing guide](./CONTRIBUTING.md)
@@ -124,6 +102,12 @@ pnpm check
 
 Use `pnpm dev` for a long-running tsdown watch build while editing source files.
 
-## License
+## Copyright, license and use
 
-[Apache-2.0](./LICENSE)
+Copyright © 2018-Now 小方. This project uses [Apache License 2.0](./LICENSE). Use, modification, distribution and commercial use are permitted subject to its terms.
+
+When redistributing, provide the license, mark modified files and preserve applicable copyright, attribution and supplied NOTICE information as required. This summary does not replace the license or impose additional UI attribution.
+
+Users are responsible for the legal compliance and authorization of their own modifications, deployment, data processing and operations. This reminder is not an additional license condition.
+
+Except as required by applicable law or agreed in writing, the software is provided on an "AS IS" basis. Sections 7 and 8 govern warranty disclaimers and liability limits. Providing the project does not endorse downstream activities or assume users' contractual commitments. This statement does not exclude liability that cannot lawfully be excluded.

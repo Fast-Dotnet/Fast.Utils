@@ -27,7 +27,7 @@ export interface AbortOptions {
 
 /** {@link withTimeout} 的行为选项。 */
 export interface TimeoutOptions extends AbortOptions {
-	/** 超时时使用的开发者消息。 */
+	/** 超时时使用的开发者消息 */
 	message?: string;
 }
 
@@ -143,7 +143,7 @@ const assertDelay = (milliseconds: number, name = "milliseconds"): number => {
  * @param milliseconds - 0 至 2,147,483,647 的有限毫秒数。
  * @param options - 可选取消信号。
  * @returns 到期后完成的 Promise。
- * @throws 取消时抛出名称为 `AbortError` 的 `Error`；参数非法时抛出 `RangeError`。
+ * @throws 参数非法时同步抛出 `RangeError`；信号已取消时同步抛出 `AbortError`。运行期间取消则拒绝返回的 Promise。
  */
 export function sleep(milliseconds: number, options: AbortOptions = {}): Promise<void> {
 	const delay = assertDelay(milliseconds);
@@ -175,7 +175,7 @@ export function sleep(milliseconds: number, options: AbortOptions = {}): Promise
  * @param timeoutMs - 0 至 2,147,483,647 的有限等待时间。
  * @param options - 取消信号与自定义消息。
  * @returns 底层 Promise 的结果。
- * @throws 超时抛出 `Error`，取消时抛出名称为 `AbortError` 的 `Error`；等待时间非法时抛出 `RangeError`。
+ * @throws 等待时间非法或信号已取消时同步抛错；运行期间的超时、取消及源 Promise 失败通过返回的 Promise 拒绝。
  */
 export function withTimeout<Result>(promise: PromiseLike<Result>, timeoutMs: number, options: TimeoutOptions = {}): Promise<Result> {
 	const delay = assertDelay(timeoutMs, "timeoutMs");

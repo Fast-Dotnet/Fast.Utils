@@ -185,7 +185,8 @@ export function formatBytes(bytes: number, options: FormatBytesOptions = {}): st
 	if (bytes === 0) return "0 B";
 
 	const units = base === 1024 ? binaryByteUnits : byteUnits;
-	const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(base)), units.length - 1);
+	// 小于 1 的合法字节数仍使用 B，不能产生负下标并回退到最大单位。
+	const exponent = Math.max(0, Math.min(Math.floor(Math.log(bytes) / Math.log(base)), units.length - 1));
 	const value = bytes / base ** exponent;
 	const formatted = new Intl.NumberFormat(options.locale ?? "en-US", {
 		maximumFractionDigits: decimals,

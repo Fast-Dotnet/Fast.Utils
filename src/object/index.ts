@@ -70,18 +70,22 @@ const cloneDeepValue = (value: unknown, clones: WeakMap<object, object>, isRoot:
 	if (existing !== undefined) return existing;
 	if (typeof source === "function" && !isRoot) return source;
 
-	if (Array.isArray(source)) {
-		const result = createUsingConstructor(source, [source.length]);
-		clones.set(source, result);
-		for (let index = 0; index < source.length; index += 1) {
-			defineEnumerableProperty(result, index, cloneDeepValue(source[index], clones, false));
-		}
-		return result;
-	}
-
 	const tag = Object.prototype.toString.call(source);
 	let result: object;
-	if (typeof source === "function") {
+	let pendingBuffer: { source: ArrayBufferLike; result: ArrayBufferLike } | undefined;
+	// 先登记底层缓冲区，视图登记后再复制其附加属性，避免缓冲区与视图相互引用时重复构造。
+	const getBufferClone = (buffer: ArrayBufferLike): ArrayBufferLike => {
+		const existingBuffer = clones.get(buffer);
+		if (existingBuffer !== undefined) return existingBuffer as ArrayBufferLike;
+		const clonedBuffer = cloneArrayBuffer(buffer);
+		clones.set(buffer, clonedBuffer);
+		pendingBuffer = { source: buffer, result: clonedBuffer };
+		return clonedBuffer;
+	};
+	if (Array.isArray(source)) {
+		// 只复制实际存在的自有可枚举键，保留空洞、附加字符串属性和 Symbol 属性。
+		result = createUsingConstructor(source, [source.length]);
+	} else if (typeof source === "function") {
 		result = {};
 	} else {
 		switch (tag) {
@@ -97,7 +101,7 @@ const cloneDeepValue = (value: unknown, clones: WeakMap<object, object>, isRoot:
 				break;
 			case "[object DataView]": {
 				const view = source as DataView;
-				result = createUsingConstructor(source, [cloneArrayBuffer(view.buffer), view.byteOffset, view.byteLength]);
+				result = createUsingConstructor(source, [getBufferClone(view.buffer), view.byteOffset, view.byteLength]);
 				break;
 			}
 			case "[object Date]":
@@ -131,12 +135,15 @@ const cloneDeepValue = (value: unknown, clones: WeakMap<object, object>, isRoot:
 			default: {
 				if (!typedArrayTags.has(tag)) return isRoot ? {} : source;
 				const view = source as ArrayBufferView & { readonly length: number };
-				result = createUsingConstructor(source, [cloneArrayBuffer(view.buffer), view.byteOffset, view.length]);
+				result = createUsingConstructor(source, [getBufferClone(view.buffer), view.byteOffset, view.length]);
 			}
 		}
 	}
 
 	clones.set(source, result);
+	if (pendingBuffer !== undefined) {
+		copyCloneProperties(pendingBuffer.source, pendingBuffer.result, clones);
+	}
 	if (tag === "[object Map]") {
 		for (const [key, item] of source as Map<unknown, unknown>) {
 			(result as Map<unknown, unknown>).set(key, cloneDeepValue(item, clones, false));
@@ -147,14 +154,20 @@ const cloneDeepValue = (value: unknown, clones: WeakMap<object, object>, isRoot:
 		}
 	}
 
-	for (const key of Reflect.ownKeys(source)) {
-		if (!Object.prototype.propertyIsEnumerable.call(source, key)) continue;
-		const clonedValue = cloneDeepValue(Reflect.get(source, key), clones, false);
-		if (key === "__proto__") defineEnumerableProperty(result, key, clonedValue);
-		else Reflect.set(result, key, clonedValue);
-	}
+	copyCloneProperties(source, result, clones);
 	return result;
 };
+
+/** 复制自有可枚举属性，不触发结果原型上的 setter。 */
+function copyCloneProperties(source: object, result: object, clones: WeakMap<object, object>): void {
+	for (const key of Reflect.ownKeys(source)) {
+		if (!Object.prototype.propertyIsEnumerable.call(source, key)) continue;
+		const descriptor = Object.getOwnPropertyDescriptor(result, key);
+		// String 包装对象的字符索引由构造器建立，不能重新定义。
+		if (descriptor?.configurable === false && descriptor.writable === false) continue;
+		defineEnumerableProperty(result, key, cloneDeepValue(Reflect.get(source, key), clones, false));
+	}
+}
 
 /** 深度比较过程中用于识别循环引用的双向对象映射。 */
 interface EqualityState {
@@ -367,12 +380,15 @@ export function isEqual(left: unknown, right: unknown): boolean {
 /**
  * 从对象中选择指定自有可枚举属性。
  *
- * @remarks 字面量键数组保留精确返回类型；普通 `string[]` 等动态键数组返回 `Partial<Source>`。
+ * @remarks 固定键元组保留精确返回类型；动态数组中可能被选择或排除的键在返回类型中保持可选。
  * @param source - 不会被修改的源对象。
  * @param keys - 需要保留的键；不存在的键被忽略。
  * @returns 新对象，保持 `keys` 的遍历顺序。
  */
-export function pick<Source extends object, const Keys extends readonly (keyof Source)[]>(source: Source, keys: Keys): Pick<Source, Keys[number]>;
+export function pick<Source extends object, const Keys extends readonly (keyof Source)[]>(
+	source: Source,
+	keys: Keys
+): number extends Keys["length"] ? Partial<Pick<Source, Keys[number]>> : Pick<Source, Keys[number]>;
 export function pick<Source extends object>(source: Source, keys: readonly PropertyKey[]): Partial<Source>;
 export function pick<Source extends object>(source: Source, keys: readonly PropertyKey[]): Partial<Source> {
 	const result: Partial<Source> = {};
@@ -385,12 +401,15 @@ export function pick<Source extends object>(source: Source, keys: readonly Prope
 /**
  * 浅复制对象并删除指定属性。
  *
- * @remarks 字面量键数组保留精确返回类型；普通 `string[]` 等动态键数组返回 `Partial<Source>`。
+ * @remarks 固定键元组保留精确返回类型；动态数组中可能被选择或排除的键在返回类型中保持可选。
  * @param source - 不会被修改的源对象。
  * @param keys - 需要排除的键。
  * @returns 包含其余自有可枚举字符串与 Symbol 属性的新对象。
  */
-export function omit<Source extends object, const Keys extends readonly (keyof Source)[]>(source: Source, keys: Keys): Omit<Source, Keys[number]>;
+export function omit<Source extends object, const Keys extends readonly (keyof Source)[]>(
+	source: Source,
+	keys: Keys
+): number extends Keys["length"] ? Omit<Source, Keys[number]> & Partial<Pick<Source, Keys[number]>> : Omit<Source, Keys[number]>;
 export function omit<Source extends object>(source: Source, keys: readonly PropertyKey[]): Partial<Source>;
 export function omit<Source extends object>(source: Source, keys: readonly PropertyKey[]): Partial<Source> {
 	const result = { ...source };

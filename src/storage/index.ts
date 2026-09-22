@@ -59,7 +59,7 @@ export interface StorageConfiguration {
 	crypto?: boolean;
 	/** 返回 Unix 毫秒时间戳的时钟；默认使用 `Date.now`，主要用于 TTL 测试与受控时间源。 */
 	now?: () => number;
-	/** 所有物理键使用的非空命名空间前缀； */
+	/** 所有物理键使用的非空命名空间前缀，默认 `fast__`。 */
 	prefix?: string;
 }
 
@@ -96,7 +96,7 @@ export interface StorageArea {
 	 */
 	get: <Value = string>(key: string, options?: StorageReadOptions) => Value | undefined;
 	/**
-	 * 判断一个可成功读取且未过期的业务键是否存在。
+	 * 判断业务键是否具有有效且未过期的包络；不解码业务值。
 	 * @param key - 不含全局前缀的非空业务键。
 	 * @returns 键存在且包络有效时返回 `true`。
 	 */
@@ -502,8 +502,8 @@ export const Session: StorageArea = createStorageAreaProxy((configuration) => co
  *
  * @remarks 不调用时在首次操作上使用 `fast__`、JSON Codec 与 `Date.now`。首次激活后只允许以完全相同的值和引用重复调用。若检测到
  * 全局 `uni`，则自动使用其同步 Storage 且只启用 `Local`，否则使用浏览器 `localStorage` 与 `sessionStorage`。
- * `crypto: true` 仅恢复旧版 Base64 混淆行为，不能保护敏感数据。
- * @param options - 可选的全局键前缀、Codec、旧版混淆选项与时钟。
+ * `crypto: true` 仅执行可逆 Base64 混淆，不能保护敏感数据。
+ * @param options - 可选的全局键前缀、Codec、Base64 混淆选项与时钟。
  * @throws 配置非法、重复配置冲突或目标平台 Storage 不可用时抛出错误。
  */
 export function configureStorage(options: StorageConfiguration = {}): void {
@@ -533,7 +533,7 @@ export function configureStorage(options: StorageConfiguration = {}): void {
 	activeConfiguration = configuration;
 }
 
-/** 返回全局 Storage 是否已经由应用入口配置。 */
+/** 返回 Storage 是否已经显式配置，或由首次 Storage 操作激活默认配置。 */
 export function isStorageConfigured(): boolean {
 	return activeConfiguration !== undefined;
 }

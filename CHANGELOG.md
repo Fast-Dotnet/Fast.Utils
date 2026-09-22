@@ -1,6 +1,23 @@
 # Changelog
 
-All notable changes to Fast.Utils are documented in this file.
+All notable changes to this project are documented in this file.
+
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and releases should follow [Semantic Versioning](https://semver.org/).
+
+## [2.1.9] - 2026-09-22
+
+### Fixed
+
+- Preserve shared ArrayBuffer/view relationships, sparse array holes and enumerable extra/Symbol properties in cloneDeep.
+- Distinguish known key tuples from dynamic key arrays in pick/omit return types; reject synchronous once reentry without invoking the callback twice.
+- Keep browser-source globals separate from Node tooling and update consumer type/regression coverage.
+- Keep the byte unit for nonnegative fractional inputs to `formatBytes`.
+
+### Documentation and Tooling
+
+- Correct localized Fast.Docs links and retain minimal README examples.
+- Align public-contract comments and agent guidance.
+- Keep ESLint and Prettier skill-file ignores separate and add regression checks.
 
 ## [2.1.8] - 2026-09-14
 
@@ -55,7 +72,7 @@ All notable changes to Fast.Utils are documented in this file.
 - Added chainable `.parseJson<T = any>()` access to primitive string results from Base64 and Crypto text decoding APIs.
 - Added `configureLogger` for the default Logger and allowed Logger severity methods to emit data without a message string.
 
-### Breaking Changes
+### Changed
 
 - Replaced Logger's `info` method and level with `log`; `logger.log()` now maps directly to `sink.log()` and `console.log()`, and the default minimum level is now `debug`.
 - Changed the default type parameter of `StorageArea.get` from `unknown` to `string`; runtime codec results remain unchanged and may still be objects or other JSON values.
@@ -81,7 +98,7 @@ All notable changes to Fast.Utils are documented in this file.
 - Standardized every random generation entry to prefer Web Crypto and fall back to `Math.random()` when unavailable.
 - Accessed standard runtime capabilities directly through `globalThis` instead of maintaining asserted global-object views.
 
-### Breaking Changes
+### Removed
 
 - Removed `secureRandomInt` and `secureRandomString`; use `randomInt` and `randomString` instead.
 
@@ -132,16 +149,17 @@ All notable changes to Fast.Utils are documented in this file.
 
 - Added authenticated ciphertext validation, bounded crypto parameters and payloads, unbiased Web Crypto randomness, prototype-safe query/object transforms, and namespace-scoped Storage cleanup.
 
-[2.1.8]: https://github.com/China-xiaoFang/Fast.Utils/compare/v2.1.7...v2.1.8
-[2.1.7]: https://github.com/China-xiaoFang/Fast.Utils/compare/v2.1.6...v2.1.7
-[2.1.6]: https://github.com/China-xiaoFang/Fast.Utils/compare/v2.1.5...v2.1.6
-[2.1.5]: https://github.com/China-xiaoFang/Fast.Utils/compare/v2.1.4...v2.1.5
-[2.1.4]: https://github.com/China-xiaoFang/Fast.Utils/compare/v2.1.3...v2.1.4
-[2.1.3]: https://github.com/China-xiaoFang/Fast.Utils/compare/v2.1.2...v2.1.3
-[2.1.2]: https://github.com/China-xiaoFang/Fast.Utils/compare/v2.1.1...v2.1.2
-[2.1.1]: https://github.com/China-xiaoFang/Fast.Utils/compare/v2.1.0...v2.1.1
-[2.1.0]: https://github.com/China-xiaoFang/Fast.Utils/compare/v2.0.3...v2.1.0
-[2.0.3]: https://github.com/China-xiaoFang/Fast.Utils/releases/tag/v2.0.3
-[2.0.2]: https://github.com/China-xiaoFang/Fast.Utils/releases/tag/v2.0.2
-[2.0.1]: https://github.com/China-xiaoFang/Fast.Utils/releases/tag/v2.0.1
-[2.0.0]: https://github.com/China-xiaoFang/Fast.Utils/releases/tag/v2.0.0
+[2.1.9]: https://gitee.com/FastDotnet/fast.utils/compare/v2.1.8...v2.1.9
+[2.1.8]: https://gitee.com/FastDotnet/fast.utils/compare/v2.1.7...v2.1.8
+[2.1.7]: https://gitee.com/FastDotnet/fast.utils/compare/v2.1.6...v2.1.7
+[2.1.6]: https://gitee.com/FastDotnet/fast.utils/compare/v2.1.5...v2.1.6
+[2.1.5]: https://gitee.com/FastDotnet/fast.utils/compare/v2.1.4...v2.1.5
+[2.1.4]: https://gitee.com/FastDotnet/fast.utils/compare/v2.1.3...v2.1.4
+[2.1.3]: https://gitee.com/FastDotnet/fast.utils/compare/v2.1.2...v2.1.3
+[2.1.2]: https://gitee.com/FastDotnet/fast.utils/compare/v2.1.1...v2.1.2
+[2.1.1]: https://gitee.com/FastDotnet/fast.utils/compare/v2.1.0...v2.1.1
+[2.1.0]: https://gitee.com/FastDotnet/fast.utils/compare/v2.0.3...v2.1.0
+[2.0.3]: https://gitee.com/FastDotnet/fast.utils/compare/v2.0.2...v2.0.3
+[2.0.2]: https://gitee.com/FastDotnet/fast.utils/compare/v2.0.1...v2.0.2
+[2.0.1]: https://gitee.com/FastDotnet/fast.utils/compare/v2.0.0...v2.0.1
+[2.0.0]: https://gitee.com/FastDotnet/fast.utils/releases/tag/v2.0.0

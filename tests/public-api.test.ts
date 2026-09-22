@@ -231,3 +231,15 @@ export type {
 	StorageResult,
 	SymmetricDifferenceResult,
 };
+
+// 动态联合键数组不保证所有键都被选择或排除。
+const dynamicReviewKeys: ("a" | "b")[] = ["a"];
+const dynamicReviewPick = pick({ a: 1, b: 2, c: 3 }, dynamicReviewKeys);
+const dynamicReviewOmit = omit({ a: 1, b: 2, c: 3 }, dynamicReviewKeys);
+const dynamicReviewValue: number | undefined = dynamicReviewPick.b;
+const retainedReviewValue: number = dynamicReviewOmit.c;
+// @ts-expect-error 动态数组中包含某类键，不代表运行时一定选择了该键。
+const requiredReviewValue: number = dynamicReviewPick.b;
+// @ts-expect-error 动态数组不保证 a 已经删除。
+const removedReviewValue: undefined = dynamicReviewOmit.a;
+export { dynamicReviewValue, retainedReviewValue, requiredReviewValue, removedReviewValue };

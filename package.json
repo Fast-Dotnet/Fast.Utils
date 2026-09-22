@@ -1,6 +1,6 @@
 {
 	"name": "@fast-china/utils",
-	"version": "2.1.8",
+	"version": "2.1.9",
 	"description": "Typed utilities for modern browsers, WebViews, Vue 3, and uni-app applications.",
 	"type": "module",
 	"keywords": [
@@ -56,7 +56,7 @@
 		"format:check": "prettier --check .",
 		"test": "pnpm run build && pnpm run test:types && pnpm run test:runtime && pnpm run test:package",
 		"test:types": "tsc --noEmit --project tests/tsconfig.json",
-		"test:runtime": "node --import tsx --test tests/async.test.ts tests/core.test.ts tests/storage-crypto.test.ts tests/storage-default.test.ts tests/storage-uni.test.ts tests/vue.test.ts",
+		"test:runtime": "node --import tsx --test tests/async.test.ts tests/core.test.ts tests/storage-crypto.test.ts tests/storage-default.test.ts tests/storage-uni.test.ts tests/vue.test.ts tests/number.test.ts tests/object-contract.test.ts tests/tool-ignores.test.mjs",
 		"test:package": "node --test tests/package.test.mjs && publint --strict --pack npm",
 		"check": "pnpm run typecheck && pnpm run lint && pnpm run test && pnpm run format:check",
 		"prepack": "pnpm run check"

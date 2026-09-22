@@ -12,9 +12,9 @@
 		"module": "ESNext",
 		// 按打包器规则解析 package exports 和 ESM。
 		"moduleResolution": "Bundler",
-		// 应用源码不加载 Node.js 或测试框架全局类型。
+		// 不自动引入 @types 全局声明；显式导入的模块仍会解析其类型。
 		"types": [],
-		// 启用全部严格类型检查。
+		// 启用 strict 选项族；额外检查及单项覆盖由下方选项决定。
 		"strict": true,
 		// 派生类覆盖成员时必须显式使用 override。
 		"noImplicitOverride": true,
@@ -40,6 +40,6 @@
 	},
 	// 检查库源码和唯一构建配置；测试使用 tests/tsconfig.json。
 	"include": ["src", "tsdown.config.ts"],
-	// 排除依赖、发布产物和覆盖率结果。
+	// 排除依赖和发布产物。
 	"exclude": ["node_modules", "dist"]
 }

@@ -1,18 +1,20 @@
-<p align="left">
-	<strong>简体中文</strong> | <a href="./README.md">English</a>
-</p>
+**简体中文** | [English](./README.md)
 
 <p align="center">
-	<img src="./Fast.png" alt="logo" width="160" />
+	<img src="./Fast.png" width="128" alt="Fast.Utils Logo" />
 </p>
 
-# @fast-china/utils
+<h1 align="center">Fast.Utils</h1>
 
-**[使用文档](http://docs.fastdotnet.cn/utils/) · [官方网站](http://fastdotnet.com)**
+<p align="center">
+	<a href="https://www.npmjs.com/package/@fast-china/utils"><img src="https://img.shields.io/npm/v/@fast-china/utils?logo=npm" alt="npm version" /></a>
+	<a href="https://www.npmjs.com/package/@fast-china/utils"><img src="https://img.shields.io/npm/dm/@fast-china/utils" alt="npm downloads" /></a>
+	<a href="./LICENSE"><img src="https://img.shields.io/npm/l/@fast-china/utils" alt="License" /></a>
+</p>
 
-面向现代浏览器、WebView、Vue 3 与 uni-app 的 TypeScript 前端工具库。
+面向现代浏览器、WebView、Vue 3 与 uni-app 的 TypeScript 工具 SDK。
 
-[![npm 版本](https://img.shields.io/npm/v/@fast-china/utils?color=orange)](https://www.npmjs.com/package/@fast-china/utils) [![node](https://img.shields.io/badge/node-%5E22.18%20%7C%7C%20%5E24.18-brightgreen)](https://nodejs.org/) [![Vue](https://img.shields.io/badge/vue-%5E3.5.11-42b883)](https://vuejs.org/) [![开源协议](https://img.shields.io/npm/l/@fast-china/utils)](./LICENSE)
+**[使用文档](http://docs.fastdotnet.cn/zh-CN/frontend/utils/) · [官方网站](http://fastdotnet.com)**
 
 ## 特性
 
@@ -29,69 +31,45 @@ pnpm add @fast-china/utils
 
 ### CDN
 
-`unpkg` 和 `jsdelivr` 字段都指向压缩后的浏览器文件 `dist/index.global.min.js`，全局变量为 `FastUtils`。
+jsDelivr 入口为压缩后的浏览器文件 `dist/index.global.min.js`，全局变量为 `FastUtils`。
 
-## Storage
+| 资源                                         | jsDelivr                                                                            | unpkg                                                                 |
+| -------------------------------------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `vue@3.5.11/dist/vue.global.prod.js`         | [jsDelivr](https://cdn.jsdelivr.net/npm/vue@3.5.11/dist/vue.global.prod.js)         | [unpkg](https://unpkg.com/vue@3.5.11/dist/vue.global.prod.js)         |
+| `@fast-china/utils/dist/index.global.min.js` | [jsDelivr](https://cdn.jsdelivr.net/npm/@fast-china/utils/dist/index.global.min.js) | [unpkg](https://unpkg.com/@fast-china/utils/dist/index.global.min.js) |
 
-`Local` 和 `Session` 无需配置即可使用。默认前缀为 `fast__`，值使用 JSON 编码，未指定 TTL 时永久有效：
+## 快速开始
 
-```ts
-import { Local, Session } from "@fast-china/utils";
-
-Local.set("user", { id: 1 }, { ttlMs: 30 * 60 * 1000 });
-const user = Local.get<{ id: number }>("user");
-
-Local.set("private-user", { id: 2 }, { crypto: true });
-const privateUser = Local.get<{ id: number }>("private-user", { crypto: true });
-
-Session.set("redirect", "/home");
-const redirect = Session.get("redirect"); // string | undefined
-```
-
-`get<Value = string>()` 未传泛型时默认返回 `string | undefined`，因此字符串场景可以直接调用。Storage Codec 仍会在运行时执行 JSON 反序列化；若存储的是对象、数组或其他非字符串值，建议显式传入对应泛型以获得准确类型。
-
-只有需要覆盖默认值时，才需在首次 Storage 操作前调用 `configureStorage`。兼容旧版的 `crypto` 选项只执行可逆 Base64 混淆，不是加密，不能保护敏感数据：
+默认命名空间为 `fast__`，可直接存取带过期时间的业务数据：
 
 ```ts
-import { configureStorage } from "@fast-china/utils";
+import { Local } from "@fast-china/utils";
 
-configureStorage({
-	prefix: "my-app:",
-	crypto: true,
-});
+Local.set("profile", { name: "Fast" }, { ttlMs: 30 * 60 * 1000 });
+const profile = Local.get<{ name: string }>("profile");
+console.log(profile?.name);
 ```
 
-激活后的全局配置不可变；相同配置重复调用保持幂等，不同配置会抛错。`set/get` 的 `crypto` 选项只覆盖单次操作，读写同一条目时必须保持一致，不会改变全局配置。自定义 `codec` 与全局 `crypto` 不能同时使用。uni-app 中 `Local` 会自动解析运行时注入的 `uni` 对象并使用其同步 Storage API；由于没有等价的 sessionStorage，`Session` 会明确抛错。`clear()` 只清理当前前缀。
+省略 TTL 时永久有效。自定义命名空间或 Codec 必须在首次存储操作之前配置；`crypto` 仅为 Base64 混淆，不是加密。uni-app 使用 `Local`，不支持 `Session`。
 
-## Base64
+## 常见用法
 
-[完整配置与示例](http://docs.fastdotnet.cn/utils/guide)
+普通工具从包根具名导入：
 
-## 复制文本
+```ts
+import { encodeBase64, formatBytes, sleep } from "@fast-china/utils";
 
-[完整配置与示例](http://docs.fastdotnet.cn/utils/guide)
+const encoded = encodeBase64("Fast");
+const size = formatBytes(1536);
+await sleep(100);
+console.log(encoded, size);
+```
 
-## 安装实例标识
-
-[完整配置与示例](http://docs.fastdotnet.cn/utils/guide)
-
-## Logger
-
-[完整配置与示例](http://docs.fastdotnet.cn/utils/guide)
-
-## Crypto
-
-[完整配置与示例](http://docs.fastdotnet.cn/utils/guide)
-
-## Vue 3
-
-[完整配置与示例](http://docs.fastdotnet.cn/utils/guide)
+同步参数校验和已取消信号可能在调用时抛错；等待期间的取消通过 Promise 拒绝，不将二者混为一谈。
 
 ## 模块
 
 `@fast-china/utils` 是唯一公开入口，全部 API 都通过具名导出提供。源码模块仍会在 `dist/` 中独立保留，便于现代打包器移除未使用代码，但这些内部文件不是公开子路径。
-
-历史聚合对象不再公开，继续支持的能力通过具名函数提供，便于自动导入与 Tree Shaking；当前大版本并未保留每一个旧版便捷方法。
 
 `object` 模块提供不依赖第三方库的深复制、深度比较和按条件筛选属性能力。数组工具支持 SameValueZero 对称差集，`once` 则会保留第一次调用的返回值、Promise 引用或同步错误。
 
@@ -106,8 +84,8 @@ configureStorage({
 
 ## 文档
 
-- [API 文档](http://docs.fastdotnet.cn/utils/api)
-- [运行时契约](http://docs.fastdotnet.cn/utils/runtime-contract)
+- [API 文档](http://docs.fastdotnet.cn/zh-CN/frontend/utils/api/)
+- [运行时契约](http://docs.fastdotnet.cn/zh-CN/frontend/utils/runtime-contract)
 - [开发与发布](./docs/DEVELOPMENT_RELEASE.zh-CN.md)
 - [安全策略](./SECURITY.md)
 - [贡献指南](./CONTRIBUTING.md)
@@ -124,6 +102,12 @@ pnpm check
 
 修改源码时可使用 `pnpm dev` 启动长期运行的 tsdown 监听构建。
 
-## 许可证
+## 版权、许可证与使用声明
 
-[Apache-2.0](./LICENSE)
+版权所有 © 2018-Now 小方。本项目依据 [Apache License 2.0](./LICENSE) 开源；在遵守许可证的前提下，可以使用、修改和分发本软件，包括商业使用。
+
+再分发时，应按许可证要求提供许可证副本、对修改的文件作出显著说明，并保留适用的版权和归属声明；包含需要保留的 NOTICE 信息时一并处理。本说明不替代正式许可证，也不额外要求在产品界面展示作者或项目标识。
+
+使用者应就自身使用、二次开发、部署、数据处理及运营活动遵守适用法律和第三方合法权益，自行取得依法需要的授权。上述内容为合规提醒，不构成附加许可条件。
+
+除适用法律另有规定或另有书面约定外，本软件按“原样”提供；保证排除与责任限制以许可证第 7、8 条为准。提供本项目不代表原作者为使用者的二次开发和运营活动背书，也不当然承担其对第三方作出的合同承诺。本说明不排除依法不得排除的责任。

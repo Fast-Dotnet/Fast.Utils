@@ -102,6 +102,7 @@ export default defineConfig(
 			"**/{dist,build,coverage,output,temp,tmp}/**",
 			"**/{.cache,.nuxt,.output,.vercel,.nitro}/**",
 			"**/{.vitepress/cache,.vite-inspect}/**",
+			"**/.agents/**",
 			"**/__snapshots__/**",
 			"**/*.min.*",
 			"**/auto-import?(s).d.ts",
@@ -112,6 +113,7 @@ export default defineConfig(
 			"**/bun.lock",
 			"**/bun.lockb",
 			"**/deno.lock",
+			"**/skills-lock.json",
 		],
 		"fast-utils/ignores/global"
 	),
@@ -120,18 +122,19 @@ export default defineConfig(
 		name: "fast-utils/ignores/git",
 		...eslintConfigFlatGitignore({ strict: false }),
 	},
-	// Node.js 项目的 JavaScript 与 TypeScript 文件使用 Node.js 全局变量。
+	// 浏览器工具源码使用浏览器 globals；构建、脚本和测试在后续工程片段中补充 Node.js globals。
 	{
-		name: "fast-utils/globals/node",
+		name: "fast-utils/globals/browser",
 		files: ["**/*.{js,cjs,mjs,jsx}", "**/*.{ts,cts,mts,tsx}"],
 		languageOptions: {
-			globals: globals.node,
+			globals: globals.browser,
 		},
 	},
 	// 配置、脚本、测试与 CLI 等工程文件允许使用 console。
 	{
 		name: "fast-utils/globals/node-tooling",
 		files: [
+			"**/.prettierrc.{js,cjs,mjs}",
 			["**/*.{config,setup}.{js,cjs,mjs,jsx,ts,cts,mts,tsx}", "**/*.{js,cjs,mjs,jsx}"],
 			["**/*.{config,setup}.{js,cjs,mjs,jsx,ts,cts,mts,tsx}", "**/*.{ts,cts,mts,tsx}"],
 			["**/{scripts,bin}/**/*.{js,cjs,mjs,jsx,ts,cts,mts,tsx}", "**/*.{js,cjs,mjs,jsx}"],
