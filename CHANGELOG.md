@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and releases should follow [Semantic Versioning](https://semver.org/).
 
+## [2.1.10] - 2026-09-27
+
+### Added
+
+- Add `useTransition` for reactive numeric transitions with configurable duration and easing, continuous retargeting, scope cleanup, and immediate fallback when animation frames are unavailable.
+
 ## [2.1.9] - 2026-09-22
 
 ### Fixed
@@ -149,6 +155,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - Added authenticated ciphertext validation, bounded crypto parameters and payloads, unbiased Web Crypto randomness, prototype-safe query/object transforms, and namespace-scoped Storage cleanup.
 
+[2.1.10]: https://gitee.com/FastDotnet/fast.utils/compare/v2.1.9...v2.1.10
 [2.1.9]: https://gitee.com/FastDotnet/fast.utils/compare/v2.1.8...v2.1.9
 [2.1.8]: https://gitee.com/FastDotnet/fast.utils/compare/v2.1.7...v2.1.8
 [2.1.7]: https://gitee.com/FastDotnet/fast.utils/compare/v2.1.6...v2.1.7

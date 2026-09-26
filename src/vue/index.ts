@@ -15,5 +15,6 @@ export * from "./props";
 export * from "./render";
 export * from "./resize-observer";
 export * from "./slots";
+export * from "./transition";
 export * from "./window-size";
 export * from "./with";

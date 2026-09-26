@@ -42,10 +42,23 @@ import {
 	useProps,
 	useRender,
 	useResizeObserver,
+	useTransition,
 	useWindowSize,
 	withDefineType,
 } from "@fast-china/utils";
 import type { ComputedRef } from "vue";
+
+const transitioned = useTransition(shallowRef(0), { duration: 500, transition: (progress) => progress ** 2 });
+const transitionedNumber: number = transitioned.value;
+useTransition(() => 10);
+useTransition(10);
+// @ts-expect-error 过渡值只读
+transitioned.value = 1;
+// @ts-expect-error 仅支持数值
+useTransition(shallowRef("10"));
+// @ts-expect-error 缓动必须返回数值
+useTransition(0, { transition: () => "1" });
+export { transitionedNumber };
 
 type Equal<Left, Right> = [Left, Right] extends [Right, Left] ? true : false;
 type Expect<Value extends true> = Value;

@@ -12,6 +12,7 @@ import { definePropType, useProps } from "../src/vue/props";
 import { useRender } from "../src/vue/render";
 import { useResizeObserver } from "../src/vue/resize-observer";
 import { makeSlots } from "../src/vue/slots";
+import { useTransition } from "../src/vue/transition";
 import { useWindowSize } from "../src/vue/window-size";
 import { withDefineType } from "../src/vue/with";
 import { expect, vi } from "./test-helpers";
@@ -261,6 +262,123 @@ describe("Vue browser composables", () => {
 			expect(breakpoints?.active().value).toBe("desktop");
 			scope.stop();
 		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
+});
+
+describe("Vue numeric transitions", () => {
+	it("follows refs and getters without animation APIs and validates inputs", () => {
+		const source = shallowRef(2);
+		const output = useTransition(() => source.value * 2);
+		expect(output.value).toBe(4);
+		source.value = 5;
+		expect(output.value).toBe(10);
+		expect(useTransition(3).value).toBe(3);
+		for (const invalid of [NaN, Infinity, -Infinity]) {
+			expect(() => useTransition(invalid)).toThrow(RangeError);
+		}
+		for (const duration of [-1, NaN, Infinity]) {
+			expect(() => useTransition(0, { duration })).toThrow(RangeError);
+		}
+		vi.stubGlobal("window", {});
+		try {
+			expect(useTransition(source).value).toBe(5);
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
+	it("interpolates, retargets, finishes exactly, and cancels with its scope", () => {
+		const frames = new Map<number, FrameRequestCallback>();
+		let nextId = 0;
+		const requestAnimationFrame = (callback: FrameRequestCallback) => {
+			const id = ++nextId;
+			frames.set(id, callback);
+			return id;
+		};
+		const cancelAnimationFrame = (id: number) => {
+			frames.delete(id);
+		};
+		const advance = (time: number) => {
+			const pending = [...frames.values()];
+			frames.clear();
+			for (const callback of pending) callback(time);
+		};
+		vi.stubGlobal("window", { cancelAnimationFrame, requestAnimationFrame });
+		const scope = effectScope();
+		try {
+			expect(() => useTransition(0)).toThrow(Error);
+			const source = shallowRef(0);
+			const output = scope.run(() => useTransition(source, { duration: 100 }));
+			expect(output?.value).toBe(0);
+			expect(frames.size).toBe(0);
+			source.value = 100;
+			advance(0);
+			advance(50);
+			expect(output?.value).toBe(50);
+			source.value = -50;
+			expect(frames.size).toBe(1);
+			advance(60);
+			advance(110);
+			expect(output?.value).toBe(0);
+			advance(160);
+			expect(output?.value).toBe(-50);
+			expect(frames.size).toBe(0);
+			source.value = 100;
+			scope.stop();
+			expect(frames.size).toBe(0);
+			source.value = 200;
+			advance(500);
+			expect(output?.value).toBe(-50);
+
+			const immediateScope = effectScope();
+			const immediate = immediateScope.run(() => useTransition(source, { duration: 0 }));
+			source.value = 250;
+			expect(immediate?.value).toBe(250);
+			expect(frames.size).toBe(0);
+			immediateScope.stop();
+		} finally {
+			scope.stop();
+			vi.unstubAllGlobals();
+		}
+	});
+
+	it("uses custom easing and stops scheduling when easing fails", () => {
+		let callback: FrameRequestCallback | undefined;
+		vi.stubGlobal("window", {
+			cancelAnimationFrame: () => {
+				callback = undefined;
+			},
+			requestAnimationFrame: (next: FrameRequestCallback) => {
+				callback = next;
+				return 1;
+			},
+		});
+		const scope = effectScope();
+		try {
+			const source = shallowRef(0);
+			const output = scope.run(() => useTransition(source, { transition: (progress) => progress ** 2 }));
+			source.value = 100;
+			callback?.(0);
+			callback?.(150);
+			expect(output?.value).toBe(25);
+			callback?.(300);
+			expect(output?.value).toBe(100);
+			scope.stop();
+			const invalidScope = effectScope();
+			try {
+				invalidScope.run(() => useTransition(source, { transition: () => NaN }));
+				source.value = 200;
+				const pending = callback;
+				callback = undefined;
+				expect(() => pending?.(0)).toThrow(RangeError);
+				expect(callback).toBeUndefined();
+			} finally {
+				invalidScope.stop();
+			}
+		} finally {
+			scope.stop();
 			vi.unstubAllGlobals();
 		}
 	});
