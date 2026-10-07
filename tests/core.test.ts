@@ -26,6 +26,7 @@ import {
 	encodeBase64,
 	encodeBase64Bytes,
 	encodeBase64Url,
+	encodeBase64UrlBytes,
 	encodeLatin1Base64,
 	encodeSecureBase64,
 	endOfDay,
@@ -58,6 +59,7 @@ import {
 	isWithinInterval,
 	kebabCase,
 	lerp,
+	lowerFirst,
 	mapValues,
 	mixHexColorWithBlack,
 	mixHexColorWithWhite,
@@ -88,6 +90,7 @@ import {
 	truncateGraphemes,
 	unique,
 	uniqueBy,
+	upperFirst,
 } from "../src/index";
 import { configureLogger, createLogger, logger as defaultLogger } from "../src/logger/index";
 import { expect, vi } from "./test-helpers";
@@ -259,12 +262,65 @@ describe("Base64 utilities", () => {
 		expect(() => decodeBase64("/w==")).toThrow(TypeError);
 	});
 
-	it("resolves Encoding API capabilities only when text methods are called", () => {
+	it("preserves native decoding error causes", () => {
+		let failure: unknown;
+		try {
+			decodeBase64("/w==");
+		} catch (error) {
+			failure = error;
+		}
+		expect(failure instanceof TypeError).toBe(true);
+		if (!(failure instanceof TypeError)) throw new Error("Expected decoding failure");
+		expect(failure.cause instanceof TypeError).toBe(true);
+		expect(Object.getOwnPropertyDescriptor(failure, "cause")?.enumerable).toBe(false);
+	});
+
+	it("round-trips text without platform Encoding APIs", () => {
+		const textSamples = ["", "text", "中文 🚀\u0000", "\u007f\u0080\u07ff\u0800\uffff\u{10000}\u{10ffff}", "Fast工具".repeat(10_000)];
+		const nativeEncodings = textSamples.map((text) => Buffer.from(text, "utf8").toString("base64"));
 		vi.stubGlobal("TextEncoder", undefined);
-		expect(() => encodeBase64("text")).toThrow(Error);
+		vi.stubGlobal("TextDecoder", undefined);
+		for (const [index, text] of textSamples.entries()) {
+			expect(encodeBase64(text)).toBe(nativeEncodings[index]);
+			expect(decodeBase64(encodeBase64(text))).toBe(text);
+			expect(decodeBase64Url(encodeBase64Url(text))).toBe(text);
+			expect(decodeSecureBase64(encodeSecureBase64(text))).toBe(text);
+		}
+		expect(decodeBase64(encodeBase64("\ud800x\udfff"))).toBe("\ufffdx\ufffd");
+		expect(decodeBase64(encodeBase64("\ufeff\ufefftext"))).toBe("\ufefftext");
+		expect(decodeBase64(encodeBase64('{"id":1}')).parseJson<{ id: number }>()).toEqual({ id: 1 });
+	});
+
+	it("supports platforms missing just one Encoding API", () => {
+		const text = "中文 🚀";
+		const encoded = encodeBase64(text);
+		vi.stubGlobal("TextEncoder", undefined);
+		expect(encodeBase64(text)).toBe(encoded);
+		expect(decodeBase64(encoded)).toBe(text);
 		vi.unstubAllGlobals();
 		vi.stubGlobal("TextDecoder", undefined);
-		expect(() => decodeBase64("dGV4dA==")).toThrow(Error);
+		expect(decodeBase64(encodeBase64(text))).toBe(text);
+	});
+
+	it("rejects invalid UTF-8 with and without the native decoder", () => {
+		const invalid = [
+			[0x80],
+			[0xc0, 0x80],
+			[0xc2],
+			[0xe2, 0x28, 0xa1],
+			[0xe0, 0x80, 0x80],
+			[0xed, 0xa0, 0x80],
+			[0xf0, 0x80, 0x80, 0x80],
+			[0xf4, 0x90, 0x80, 0x80],
+			[0xf5, 0x80, 0x80, 0x80],
+		];
+		for (const decoder of [TextDecoder, undefined]) {
+			vi.stubGlobal("TextDecoder", decoder);
+			for (const bytes of invalid) {
+				expect(() => decodeBase64(encodeBase64Bytes(Uint8Array.from(bytes)))).toThrow(TypeError);
+				expect(() => decodeBase64Url(encodeBase64UrlBytes(Uint8Array.from(bytes)))).toThrow(TypeError);
+			}
+		}
 	});
 
 	it("preserves the dictionary-compatible SecureBase64 format", () => {
@@ -297,6 +353,14 @@ describe("Base64 utilities", () => {
 });
 
 describe("number utilities", () => {
+	it("formats defaults without Intl while retaining explicit locale requirements", () => {
+		vi.stubGlobal("Intl", undefined);
+		expect(formatBytes(1536)).toBe("1.5 KiB");
+		expect(() => formatBytes(1024, { locale: "de" })).toThrow("The current runtime does not support Intl.NumberFormat.");
+		expect(formatRelativeTime(86_400_000, { now: 0 })).toBe("明天");
+		expect(formatRelativeTime(-120_000, { now: 0 })).toBe("2分钟前");
+		expect(() => formatRelativeTime(0, { now: 0, locale: "en" })).toThrow("The current runtime does not support Intl.RelativeTimeFormat.");
+	});
 	it("handles ranges, rounding, interpolation, and aggregates", () => {
 		expect(clamp(9, 0, 5)).toBe(5);
 		expect(inRange(5, 0, 5)).toBe(false);
@@ -328,6 +392,66 @@ describe("number utilities", () => {
 });
 
 describe("object and query utilities", () => {
+	it("checks own properties without Object.hasOwn", () => {
+		const nativeHasOwn = Object.hasOwn;
+		Object.defineProperty(Object, "hasOwn", { configurable: true, value: undefined, writable: true });
+		try {
+			const symbol = Symbol("own");
+			const value = Object.create(null) as Record<PropertyKey, unknown>;
+			value["hasOwnProperty"] = () => false;
+			value[symbol] = undefined;
+			expect(hasOwn(value, symbol)).toBe(true);
+			expect(hasOwn(value, "toString")).toBe(false);
+			expect(isEqual({ key: 1 }, { key: 1 })).toBe(true);
+			expect(shallowEqual({ key: 1 }, { key: 1 })).toBe(true);
+		} finally {
+			Object.defineProperty(Object, "hasOwn", { configurable: true, value: nativeHasOwn, writable: true });
+		}
+	});
+
+	it("preserves valid form queries without URLSearchParams or Encoding APIs", () => {
+		const queries = [
+			"a=1&a=2&&flag&=x&empty=",
+			"q=中文+🚀&plus=%2B&equals=a=b",
+			"q=%EF%BB%BFx&__proto__=own&constructor=own",
+			"q=🚀&x=%00",
+			"??q=1",
+		];
+		const expected = queries.map((query) => {
+			const parameters = new URLSearchParams(query.replace(/^\?/u, ""));
+			return Object.fromEntries(
+				[...new Set(parameters.keys())].map((key) => {
+					const values = parameters.getAll(key);
+					return [key, values.length === 1 ? values[0] : values];
+				})
+			);
+		});
+		const values = { text: "中文 🚀 + !'()~*", empty: "", list: [1, 2], absent: null };
+		const native = new URLSearchParams();
+		for (const [key, value] of Object.entries(values)) {
+			for (const item of Array.isArray(value) ? value : [value]) {
+				if (item !== null) native.append(key, String(item));
+			}
+		}
+		const nativeEncoded = native.toString();
+		vi.stubGlobal("URLSearchParams", undefined);
+		vi.stubGlobal("TextEncoder", undefined);
+		vi.stubGlobal("TextDecoder", undefined);
+		for (const [index, query] of queries.entries()) expect(parseQueryString(query)).toEqual(expected[index]);
+		expect(toQueryString(values)).toBe(nativeEncoded);
+	});
+	it("uses native URI errors for malformed queries and lone surrogate encoding", () => {
+		for (const encoded of ["%", "%GG", "%A", "%FF", "%E0%80%80", "%E2%82", "%ED%A0%80"]) {
+			expect(() => parseQueryString(`q=${encoded}`)).toThrow(URIError);
+			expect(() => parseQueryString(`${encoded}=value`)).toThrow(URIError);
+		}
+		expect(() => toQueryString({ q: "\ud800" })).toThrow(URIError);
+		expect(() => toQueryString({ ["\udfff"]: "value" })).toThrow(URIError);
+		expect(parseQueryString("q=\ud800")).toEqual({ q: "\ud800" });
+		expect(parseQueryString("a+b=x+y&plus=%2B&space=%20")).toEqual({ "a b": "x y", plus: "+", space: " " });
+		expect(toQueryString({ q: "+ %20 !'()~*" })).toBe("q=%2B+%2520+%21%27%28%29%7E*");
+		expect(toQueryString({ q: "+ " }, { space: "percent" })).toBe("q=%2B%20");
+	});
 	it("recognizes plain objects and safely manipulates own keys", () => {
 		const source = { count: 2, label: "fast" };
 		expect(isPlainObject(source)).toBe(true);
@@ -484,6 +608,12 @@ describe("string utilities", () => {
 		expect(pascalCase("fast-utils")).toBe("FastUtils");
 		expect(kebabCase("FastUtils SDK")).toBe("fast-utils-sdk");
 		expect(normalizeWhitespace("  Fast\n\tUtils  ")).toBe("Fast Utils");
+		expect(upperFirst("istanbul")).toBe("Istanbul");
+		expect(upperFirst("istanbul", "tr")).toBe("İstanbul");
+		expect(lowerFirst("Istanbul")).toBe("istanbul");
+		expect(lowerFirst("Istanbul", "tr")).toBe("ıstanbul");
+		expect(camelCase("I VALUE", "tr")).toBe("ıValue");
+		expect(kebabCase("I VALUE", "tr")).toBe("ı-value");
 	});
 
 	it("truncates graphemes and escapes HTML text context", () => {
@@ -574,6 +704,43 @@ describe("date utilities", () => {
 		expect(isWithinInterval(end, start, end)).toBe(true);
 		expect(isWithinInterval("2024-01-03T00:00:00.000Z", start, end)).toBe(false);
 		expect(() => isWithinInterval(start, end, start)).toThrow(RangeError);
+	});
+
+	it("matches Chinese relative-time output across thresholds, styles, and negative zero", () => {
+		const units = [
+			["second", 1_000, [0, 1, 2, 30, 59]],
+			["minute", 60_000, [1, 2, 59]],
+			["hour", 3_600_000, [1, 2, 23]],
+			["day", 86_400_000, [1, 2, 6]],
+			["week", 604_800_000, [1, 2, 4]],
+			["month", 2_629_800_000, [1, 2, 11]],
+			["year", 31_557_600_000, [1, 2, 1000]],
+		] as const;
+		for (const numeric of ["auto", "always"] as const) {
+			for (const style of ["long", "short", "narrow"] as const) {
+				const formatter = new Intl.RelativeTimeFormat("zh-CN", { numeric, style });
+				for (const [unit, milliseconds, amounts] of units) {
+					for (const count of amounts) {
+						for (const sign of [-1, 1]) {
+							const difference = count * sign * milliseconds;
+							const rounded = Math.round(new Date(difference).getTime() / milliseconds);
+							expect(formatRelativeTime(difference, { now: 0, numeric, style })).toBe(formatter.format(rounded, unit));
+						}
+					}
+				}
+				expect(formatRelativeTime(-1, { now: 0, numeric, style })).toBe(formatter.format(-0, "second"));
+			}
+		}
+		expect(() => formatRelativeTime(0, { now: 0, numeric: "invalid" as never })).toThrow(RangeError);
+		expect(() => formatRelativeTime(0, { now: 0, style: "invalid" as never })).toThrow(RangeError);
+	});
+
+	it("retains locale-specific relative-time formatting", () => {
+		for (const locale of ["en", "de", "ar", "ja", "zh-TW"]) {
+			expect(formatRelativeTime(-86_400_000, { now: 0, locale })).toBe(
+				new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(-1, "day")
+			);
+		}
 	});
 
 	it("formats every supported relative-time unit against an explicit baseline", () => {

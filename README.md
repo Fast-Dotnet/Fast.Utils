@@ -73,14 +73,17 @@ Parameter validation or a pre-aborted signal may throw synchronously; cancellati
 
 The `object` module includes dependency-free deep cloning and equality plus predicate-based property selection. Array utilities include a SameValueZero symmetric difference, while `once` preserves the first return value, Promise identity, or synchronous error.
 
+SDK-generated error messages are in English. Branch on error types or names rather than matching message text; caller and platform errors are propagated unchanged.
+
 ## Runtime contract
 
 - The package-manager entry is pure ESM; the CDN entry is a separately minified IIFE.
-- ES2022 modern browsers and WebViews.
+- ESM and IIFE output targets ES2022 syntax; platform API availability is checked separately.
 - Vue 3.5.11 or newer through a required peer dependency.
-- uni-app through call-time detection of runtime-injected `uni` and App-Plus `plus`, with global-property fallbacks.
+- uni-app through guarded, direct `uni.xxx` calls; App-Plus detection checks `typeof plus` directly.
 - No import-time access to `window`, Storage, or `uni`; unsupported calls fail explicitly.
 - Web Crypto, URL, Intl, TextEncoder, and related platform capabilities are not polyfilled.
+- Text operations always use an internal UTF-8 implementation without TextEncoder / TextDecoder or global changes; invalid UTF-8 throws TypeError.
 
 ## Documentation
 

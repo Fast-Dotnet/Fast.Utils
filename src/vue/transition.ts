@@ -1,5 +1,4 @@
 import { computed, getCurrentScope, readonly, shallowRef, toValue, watch } from "vue";
-import { runtimeGlobals } from "../internal/runtime";
 import type { MaybeRefOrGetter, ShallowRef } from "vue";
 
 /** 数值过渡选项 */
@@ -24,18 +23,17 @@ export interface UseTransitionOptions {
  */
 export function useTransition(source: MaybeRefOrGetter<number>, options: UseTransitionOptions = {}): Readonly<ShallowRef<number>> {
 	const { duration = 300, transition = (progress: number) => progress } = options;
-	if (!Number.isFinite(duration) || duration < 0) throw new RangeError("`duration` 必须是非负有限数。");
+	if (!Number.isFinite(duration) || duration < 0) throw new RangeError("`duration` must be a nonnegative finite number.");
 	const readSource = () => {
 		const value = toValue(source);
-		if (!Number.isFinite(value)) throw new RangeError("`source` 必须是有限数值。");
+		if (!Number.isFinite(value)) throw new RangeError("`source` must be a finite number.");
 		return value;
 	};
 	const output = shallowRef(readSource());
-	const window = runtimeGlobals.window;
-	if (window === undefined || typeof window.requestAnimationFrame !== "function" || typeof window.cancelAnimationFrame !== "function") {
+	if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function" || typeof window.cancelAnimationFrame !== "function") {
 		return computed(readSource);
 	}
-	if (getCurrentScope() === undefined) throw new Error("`useTransition` 必须在 Vue 响应式作用域内调用。");
+	if (getCurrentScope() === undefined) throw new Error("`useTransition` must be called within a Vue reactive scope.");
 	watch(
 		readSource,
 		(target, _previous, onCleanup) => {
@@ -58,7 +56,7 @@ export function useTransition(source: MaybeRefOrGetter<number>, options: UseTran
 				const progress = Math.min(1, Math.max(0, (timestamp - startedAt) / duration));
 				const weight = progress === 1 ? 1 : transition(progress);
 				const value = progress === 1 ? target : from * (1 - weight) + target * weight;
-				if (!Number.isFinite(weight) || !Number.isFinite(value)) throw new RangeError("缓动结果必须是有限数值。");
+				if (!Number.isFinite(weight) || !Number.isFinite(value)) throw new RangeError("The easing result must be a finite number.");
 				if (!active) return;
 				output.value = value;
 				if (active && progress < 1) frame = window.requestAnimationFrame(tick);

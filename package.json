@@ -1,6 +1,6 @@
 {
 	"name": "@fast-china/utils",
-	"version": "2.1.10",
+	"version": "2.1.11",
 	"description": "Typed utilities for modern browsers, WebViews, Vue 3, and uni-app applications.",
 	"type": "module",
 	"keywords": [
@@ -65,6 +65,7 @@
 		"vue": "^3.5.11"
 	},
 	"devDependencies": {
+		"@dcloudio/types": "^3.4.32",
 		"@eslint/js": "^10.0.1",
 		"@eslint/markdown": "^8.0.3",
 		"@types/crypto-js": "^4.2.2",

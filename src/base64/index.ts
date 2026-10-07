@@ -1,4 +1,4 @@
-import { type DecodedText, createDecodedText, encodeUtf8, getTextDecoder } from "../internal/text";
+import { type DecodedText, createDecodedText, decodeUtf8 as decodeUtf8Strict, encodeUtf8 } from "../internal/text";
 import { randomInt } from "../number/index";
 
 export type { DecodedText } from "../internal/text";
@@ -12,18 +12,18 @@ type Base64Variant = "standard" | "url";
  * 创建统一的 Base64 输入错误。
  *
  * @param variant - 当前解析的标准 Base64 或 Base64URL 变体。
- * @returns 带有具体变体名称的 `TypeError`。
+ * @returns 带有具体变体名称的 `TypeError`
  */
 const invalidBase64 = (variant: Base64Variant): TypeError => {
-	return new TypeError(`该值不是有效的 ${variant === "url" ? "Base64URL" : "Base64"}。`);
+	return new TypeError(`The value is not valid ${variant === "url" ? "Base64URL" : "Base64"}.`);
 };
 
 /**
  * 校验并规范化 Base64 文本。
  *
  * @remarks 标准 Base64 允许 ASCII 空白，Base64URL 不允许；两者最终都会转换为标准字符表和完整填充。
- * @param value - 原始编码文本。
- * @param variant - 需要应用的字符表与空白规则。
+ * @param value - 原始编码文本
+ * @param variant - 需要应用的字符表与空白规则
  * @returns 使用标准字符表且长度为 4 倍数的文本。
  * @throws `TypeError` 当字符、填充位置或编码长度非法。
  */
@@ -40,8 +40,8 @@ const normalizeBase64 = (value: string, variant: Base64Variant): string => {
 /**
  * 使用固定字符表编码任意字节。
  *
- * @param bytes - 不会被修改的源字节。
- * @returns 带标准 `=` 填充的 Base64 文本。
+ * @param bytes - 不会被修改的源字节
+ * @returns 带标准 `=` 填充的 Base64 文本
  */
 const encodeBytes = (bytes: Uint8Array): string => {
 	let result = "";
@@ -62,9 +62,9 @@ const encodeBytes = (bytes: Uint8Array): string => {
  * 把 Base64 或 Base64URL 文本解码为字节。
  *
  * @remarks 最后一组未使用位必须为零，以拒绝同一字节序列的非规范编码。
- * @param value - 待解码文本。
- * @param variant - 输入使用的编码变体。
- * @returns 新建的字节数组。
+ * @param value - 待解码文本
+ * @param variant - 输入使用的编码变体
+ * @returns 新建的字节数组
  * @throws `TypeError` 当输入格式或尾部位非法。
  */
 const decodeBytes = (value: string, variant: Base64Variant): Uint8Array => {
@@ -98,27 +98,20 @@ const decodeBytes = (value: string, variant: Base64Variant): Uint8Array => {
 	return result;
 };
 
-/**
- * 以 Fatal 模式解码 UTF-8。
- *
- * @param bytes - 待解码字节。
- * @returns 解码后的 JavaScript 字符串。
- * @throws `TypeError` 当字节不是有效 UTF-8；原始平台异常保存在 `cause` 中。
- */
+/** 统一 UTF-8 解码错误，并保留底层原因。 */
 const decodeUtf8 = (bytes: Uint8Array): string => {
-	const textDecoder = getTextDecoder();
 	try {
-		return textDecoder.decode(bytes);
+		return decodeUtf8Strict(bytes);
 	} catch (cause) {
-		throw new TypeError("解码后的字节不是有效的 UTF-8。", { cause });
+		throw new TypeError("The decoded bytes are not valid UTF-8.", { cause });
 	}
 };
 
 /**
  * 将任意字节编码为标准 Base64。
  *
- * @param bytes - 不会被修改的字节序列。
- * @returns 带标准 `=` 填充的 Base64 文本。
+ * @param bytes - 不会被修改的字节序列
+ * @returns 带标准 `=` 填充的 Base64 文本
  */
 export function encodeBase64Bytes(bytes: Uint8Array): string {
 	return encodeBytes(bytes);
@@ -128,8 +121,8 @@ export function encodeBase64Bytes(bytes: Uint8Array): string {
  * 解码标准 Base64。
  *
  * @remarks 允许省略填充和包含 ASCII 空白，但拒绝非规范尾部位。
- * @param value - Base64 文本。
- * @returns 新建的字节数组。
+ * @param value - Base64 文本
+ * @returns 新建的字节数组
  * @throws 输入非法时抛出 `TypeError`。
  */
 export function decodeBase64Bytes(value: string): Uint8Array {
@@ -139,9 +132,9 @@ export function decodeBase64Bytes(value: string): Uint8Array {
 /**
  * 将 UTF-8 文本编码为标准 Base64。
  *
- * @param value - 任意 Unicode 字符串。
- * @returns 带标准填充的 Base64 文本。
- * @throws 缺少 Encoding API 时抛出 `Error`。
+ * @param value - 任意 Unicode 字符串
+ * @returns 带标准填充的 Base64 文本
+ * @remarks 使用内部 UTF-8 编码，不依赖平台 Encoding API。
  */
 export function encodeBase64(value: string): string {
 	return encodeBytes(encodeUtf8(value));
@@ -150,9 +143,9 @@ export function encodeBase64(value: string): string {
 /**
  * 将标准 Base64 解码为 UTF-8 文本。
  *
- * @param value - Base64 文本。
+ * @param value - Base64 文本
  * @returns 可直接使用或显式调用 `.parseJson<Value>()` 的原始 Unicode 字符串。
- * @throws Base64 或 UTF-8 非法时抛出 `TypeError`；缺少 Encoding API 时抛出 `Error`。
+ * @throws Base64 或 UTF-8 非法时抛出 `TypeError`。
  */
 export function decodeBase64(value: string): DecodedText {
 	return createDecodedText(decodeUtf8(decodeBase64Bytes(value)));
@@ -161,8 +154,8 @@ export function decodeBase64(value: string): DecodedText {
 /**
  * 将任意字节编码为无填充 Base64URL。
  *
- * @param bytes - 不会被修改的字节序列。
- * @returns 仅使用 URL 安全字母表的文本。
+ * @param bytes - 不会被修改的字节序列
+ * @returns 仅使用 URL 安全字母表的文本
  */
 export function encodeBase64UrlBytes(bytes: Uint8Array): string {
 	return encodeBytes(bytes).replace(/\+/gu, "-").replace(/\//gu, "_").replace(/=+$/u, "");
@@ -172,8 +165,8 @@ export function encodeBase64UrlBytes(bytes: Uint8Array): string {
  * 解码 Base64URL 字节。
  *
  * @remarks 接受带填充和无填充形式，不接受空白或标准 Base64 的 `+`、`/`。
- * @param value - Base64URL 文本。
- * @returns 新建的字节数组。
+ * @param value - Base64URL 文本
+ * @returns 新建的字节数组
  * @throws 输入非法时抛出 `TypeError`。
  */
 export function decodeBase64UrlBytes(value: string): Uint8Array {
@@ -183,9 +176,9 @@ export function decodeBase64UrlBytes(value: string): Uint8Array {
 /**
  * 将 UTF-8 文本编码为无填充 Base64URL。
  *
- * @param value - 任意 Unicode 字符串。
- * @returns 仅使用 URL 安全字母表的文本。
- * @throws 缺少 Encoding API 时抛出 `Error`。
+ * @param value - 任意 Unicode 字符串
+ * @returns 仅使用 URL 安全字母表的文本
+ * @remarks 使用内部 UTF-8 编码，不依赖平台 Encoding API。
  */
 export function encodeBase64Url(value: string): string {
 	return encodeBase64UrlBytes(encodeUtf8(value));
@@ -194,9 +187,9 @@ export function encodeBase64Url(value: string): string {
 /**
  * 将 Base64URL 解码为 UTF-8 文本。
  *
- * @param value - 带填充或无填充的 Base64URL 文本。
+ * @param value - 带填充或无填充的 Base64URL 文本
  * @returns 可直接使用或显式调用 `.parseJson<Value>()` 的原始 Unicode 字符串。
- * @throws Base64URL 或 UTF-8 非法时抛出 `TypeError`；缺少 Encoding API 时抛出 `Error`。
+ * @throws Base64URL 或 UTF-8 非法时抛出 `TypeError`。
  */
 export function decodeBase64Url(value: string): DecodedText {
 	return createDecodedText(decodeUtf8(decodeBase64UrlBytes(value)));
@@ -206,14 +199,14 @@ export function decodeBase64Url(value: string): DecodedText {
  * 把 Latin-1 文本编码为标准 Base64。
  *
  * @param value - 每个 UTF-16 码元都必须位于 0–255 的文本。
- * @returns 带标准填充的 Base64 文本。
+ * @returns 带标准填充的 Base64 文本
  * @throws `TypeError` 当文本包含 Latin-1 范围外的码元。
  */
 export function encodeLatin1Base64(value: string): string {
 	const bytes = new Uint8Array(value.length);
 	for (let index = 0; index < value.length; index += 1) {
 		const code = value.charCodeAt(index);
-		if (code > 255) throw new TypeError("待编码字符串包含超出 Latin-1 范围的字符。");
+		if (code > 255) throw new TypeError("The input string contains characters outside the Latin-1 range.");
 		bytes[index] = code;
 	}
 	return encodeBase64Bytes(bytes);
@@ -236,7 +229,7 @@ export function decodeLatin1Base64(value: string): DecodedText {
 const randomPrefixAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 const defaultRandomPrefixLength = 6;
 
-/** SecureBase64 兼容格式中一组不可变的字符插入位置。 */
+/** SecureBase64 兼容格式中一组不可变的字符插入位置 */
 interface Base64PasswordDictionaryEntry {
 	/** 原始载荷中的固定字符索引；超出短载荷长度时忽略当前条目。 */
 	index: number;
@@ -283,11 +276,11 @@ const base64PasswordDictionary: readonly Readonly<Base64PasswordDictionaryEntry>
 /**
  * 校验 SecureBase64 兼容格式的前缀长度。
  *
- * @param length - 待校验的前缀字符数。
+ * @param length - 待校验的前缀字符数
  * @throws `RangeError` 当长度不是非负安全整数。
  */
 const assertPrefixLength = (length: number): void => {
-	if (!Number.isSafeInteger(length) || length < 0) throw new RangeError("`prefixStrLength` 必须是非负安全整数。");
+	if (!Number.isSafeInteger(length) || length < 0) throw new RangeError("`prefixStrLength` must be a nonnegative safe integer.");
 };
 
 /**
@@ -296,7 +289,7 @@ const assertPrefixLength = (length: number): void => {
  * @remarks 优先使用 Web Crypto，能力缺失时回退到 `Math.random()`。前缀只用于降低相同明文
  * 产生相同载荷的概率，本身不构成加密，也不得承担安全用途。
  * @param length - 需要生成的字符数，调用前必须完成校验。
- * @returns 由历史字母表组成的文本。
+ * @returns 由历史字母表组成的文本
  */
 const createRandomPrefix = (length: number): string => {
 	let result = "";
@@ -310,15 +303,15 @@ const createRandomPrefix = (length: number): string => {
  * 按固定字典向 Base64 文本插入冗余字符。
  *
  * @remarks 字典按高索引到低索引排列，确保插入不会改变尚未处理的位置。
- * @param base64Value - 尚未插入兼容字典字符的 Base64 文本。
- * @returns 与旧持久化格式兼容的 SecureBase64 载荷。
+ * @param base64Value - 尚未插入兼容字典字符的 Base64 文本
+ * @returns 与旧持久化格式兼容的 SecureBase64 载荷
  */
 const insertDictionaryCharacters = (base64Value: string): string => {
 	let result = base64Value;
 	for (const item of base64PasswordDictionary) {
 		if (item.index >= base64Value.length) continue;
 		// 旧字典的 index=100 项会在 101–124 字符载荷中越界；退回末字符可保持单字符插入协议，旧解码器仍能移除。
-		const character = base64Value[item.randomIndex] ?? base64Value.at(-1) ?? "";
+		const character = base64Value[item.randomIndex] ?? base64Value[base64Value.length - 1] ?? "";
 		result = result.slice(0, item.index) + character + result.slice(item.index);
 	}
 	return result;
@@ -327,8 +320,8 @@ const insertDictionaryCharacters = (base64Value: string): string => {
 /**
  * 移除历史字典插入的冗余字符。
  *
- * @param base64Value - 已移除随机前缀的 SecureBase64 载荷。
- * @returns 可交给标准 Base64 解码器的文本。
+ * @param base64Value - 已移除随机前缀的 SecureBase64 载荷
+ * @returns 可交给标准 Base64 解码器的文本
  */
 const removeDictionaryCharacters = (base64Value: string): string => {
 	let result = base64Value;
@@ -345,8 +338,8 @@ const removeDictionaryCharacters = (base64Value: string): string => {
  * @remarks 给定相同的 6 字符前缀时，默认输出与旧有效载荷逐字符兼容。旧字典在 101–124 字符载荷中引用越界；这里复制末字符作为单字符回退，
  * 使旧删除字典流程仍能解码。传入 `0` 会同时关闭随机前缀与字典插入。
  * 该格式只是可逆编码，不提供加密、完整性或身份认证。
- * @param value - 任意可由 `encodeURIComponent` 处理的 Unicode 文本。
- * @param prefixLength - 随机字母前缀长度；默认 `6`。
+ * @param value - 任意可由 `encodeURIComponent` 处理的 Unicode 文本
+ * @param prefixLength - 随机字母前缀长度；默认 `6`
  * @returns 带随机前缀和兼容字典字符的 Base64 文本；空输入返回空字符串。
  * @throws `RangeError` 当前缀长度不是非负安全整数；输入包含孤立代理项时保留平台错误。
  */
@@ -370,7 +363,7 @@ export function encodeSecureBase64(value: string, prefixLength: number = default
 export function decodeSecureBase64(value: string, prefixLength: number = defaultRandomPrefixLength): DecodedText {
 	if (value.length === 0) return createDecodedText("");
 	assertPrefixLength(prefixLength);
-	if (prefixLength > value.length) throw new TypeError("Base64 值的长度小于配置的前缀长度。");
+	if (prefixLength > value.length) throw new TypeError("The Base64 value is shorter than the configured prefix.");
 	let encoded = value.slice(prefixLength);
 	if (prefixLength !== 0) encoded = removeDictionaryCharacters(encoded);
 	return createDecodedText(decodeURIComponent(decodeLatin1Base64(encoded)));

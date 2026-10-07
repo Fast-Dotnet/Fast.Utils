@@ -3,7 +3,7 @@ import { generateUuidV4, isUuidV4 } from "../string/index";
 
 const defaultInstallationIdentityStorageKey = "identity:installation-id";
 
-/** {@link configureInstallationIdentity} 接收的安装标识配置。 */
+/** {@link configureInstallationIdentity} 接收的安装标识配置 */
 export interface InstallationIdentityConfiguration {
 	/**
 	 * `Local` 中使用的业务键，默认 `identity:installation-id`。
@@ -13,7 +13,7 @@ export interface InstallationIdentityConfiguration {
 	cacheKey?: string;
 }
 
-/** 浏览器或 uni-app 当前安装实例标识。 */
+/** 浏览器或 uni-app 当前安装实例标识 */
 export interface InstallationIdentity {
 	/**
 	 * `Local` 中使用的业务键。
@@ -56,11 +56,11 @@ export interface InstallationIdentity {
 /**
  * 校验安装标识格式。
  *
- * @param value - 外部传入或从 Storage 读取的候选值。
+ * @param value - 外部传入或从 Storage 读取的候选值
  * @throws `TypeError` 当值不是 RFC 4122 UUID v4。
  */
 const assertInstallationId = (value: string): void => {
-	if (!isUuidV4(value)) throw new TypeError("安装标识值必须是符合 RFC 4122 的 UUID v4。");
+	if (!isUuidV4(value)) throw new TypeError("The installation identity must be an RFC 4122 UUID v4.");
 };
 
 let activeStorageKey: string | undefined;
@@ -69,7 +69,7 @@ let activeStorageKey: string | undefined;
  * 取得已经锁定的安装标识业务键。
  *
  * @remarks 首次读取会锁定默认值，防止标识已经写入后再切换键而产生两个安装标识。
- * @returns 应用于后续全部 Identity 操作的业务键。
+ * @returns 应用于后续全部 Identity 操作的业务键
  */
 const getInstallationIdentityStorageKey = (): string => {
 	activeStorageKey ??= defaultInstallationIdentityStorageKey;
@@ -88,13 +88,13 @@ const getInstallationIdentityStorageKey = (): string => {
 export function configureInstallationIdentity(options: InstallationIdentityConfiguration = {}): void {
 	const cacheKey = options.cacheKey ?? defaultInstallationIdentityStorageKey;
 	if (typeof cacheKey !== "string" || cacheKey.length === 0 || cacheKey.trim() !== cacheKey) {
-		throw new TypeError("安装标识的 `cacheKey` 必须是无外围空白的非空字符串。");
+		throw new TypeError("The installation identity `cacheKey` must be a nonempty string without surrounding whitespace.");
 	}
 	if (activeStorageKey === undefined) {
 		activeStorageKey = cacheKey;
 		return;
 	}
-	if (activeStorageKey !== cacheKey) throw new Error("安装标识已使用其他 `cacheKey` 完成配置。");
+	if (activeStorageKey !== cacheKey) throw new Error("The installation identity is already configured with a different `cacheKey`.");
 }
 
 /**
@@ -125,7 +125,7 @@ export const installationIdentity: InstallationIdentity = {
 	read(): string | undefined {
 		const stored = Local.get(installationIdentity.cacheKey);
 		if (stored === undefined) return undefined;
-		if (typeof stored !== "string") throw new TypeError("存储的安装标识已损坏。");
+		if (typeof stored !== "string") throw new TypeError("The stored installation identity is corrupted.");
 		assertInstallationId(stored);
 		return stored;
 	},
@@ -135,7 +135,7 @@ export const installationIdentity: InstallationIdentity = {
  * 返回已有安装标识，否则创建并持久化一个 UUID v4。
  *
  * @param installationId - 可选的显式安装标识；传入时会校验并覆盖当前持久化值。
- * @returns 显式值、内存值、持久化值或新生成值中的最终安装标识。
+ * @returns 显式值、内存值、持久化值或新生成值中的最终安装标识
  * @throws `TypeError` 当显式值或持久化值不是 UUID v4。
  * @throws `Error` 当当前平台存储不可用。
  */

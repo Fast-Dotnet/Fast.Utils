@@ -7,12 +7,12 @@ export type QueryValue = QueryPrimitive | readonly QueryPrimitive[];
 /**
  * 判断 Query Value 是否为重复参数数组。
  *
- * @param value - 单值或数组形式的 Query Value。
+ * @param value - 单值或数组形式的 Query Value
  * @returns 是只读原始值数组时返回 `true`。
  */
 const isQueryPrimitiveArray = (value: QueryValue): value is readonly QueryPrimitive[] => Array.isArray(value);
 
-/** {@link toQueryString} 的序列化选项。 */
+/** {@link toQueryString} 的序列化选项 */
 export interface QueryStringOptions {
 	/** 返回非空结果时是否添加 `?`；默认 `false`。 */
 	prefixQuestionMark?: boolean;
@@ -26,9 +26,9 @@ export interface QueryStringOptions {
  * 安全写入结果对象的自有可枚举属性。
  *
  * @remarks 使用 `defineProperty` 避免 `__proto__` 触发 Setter，并统一创建可写、可配置的自有可枚举数据属性。
- * @param target - 要写入的结果对象。
- * @param key - 自有属性键。
- * @param value - 属性值。
+ * @param target - 要写入的结果对象
+ * @param key - 自有属性键
+ * @param value - 属性值
  */
 const defineEnumerableProperty = (target: object, key: PropertyKey, value: unknown): void => {
 	Object.defineProperty(target, key, { configurable: true, enumerable: true, value, writable: true });
@@ -169,7 +169,7 @@ function copyCloneProperties(source: object, result: object, clones: WeakMap<obj
 	}
 }
 
-/** 深度比较过程中用于识别循环引用的双向对象映射。 */
+/** 深度比较过程中用于识别循环引用的双向对象映射 */
 interface EqualityState {
 	readonly leftObjects: WeakMap<object, object>;
 	readonly rightObjects: WeakMap<object, object>;
@@ -247,7 +247,7 @@ const equalObjects = (left: object, right: object, state: EqualityState): boolea
 	const rightKeys = getEnumerableOwnKeys(right);
 	if (leftKeys.length !== rightKeys.length) return false;
 	for (const key of leftKeys) {
-		if (!Object.hasOwn(right, key)) return false;
+		if (!Object.prototype.hasOwnProperty.call(right, key)) return false;
 	}
 
 	return compareTrackedPair(left, right, state, () => {
@@ -331,7 +331,7 @@ function isEqualValue(left: unknown, right: unknown, state: EqualityState): bool
 /**
  * 判断值是否是普通对象。
  *
- * @param value - 任意待检查值。
+ * @param value - 任意待检查值
  * @returns 原型为 `Object.prototype` 或 `null` 时返回 `true`。
  */
 export function isPlainObject(value: unknown): value is Record<PropertyKey, unknown> {
@@ -344,12 +344,12 @@ export function isPlainObject(value: unknown): value is Record<PropertyKey, unkn
  * 安全判断对象是否拥有自己的属性。
  *
  * @remarks 不调用可能被对象覆盖的 `hasOwnProperty`。
- * @param value - 待检查对象。
- * @param key - 字符串、数字或 Symbol 属性键。
+ * @param value - 待检查对象
+ * @param key - 字符串、数字或 Symbol 属性键
  * @returns 属性为对象自有属性时返回 `true`，并收窄键类型。
  */
 export function hasOwn<ObjectType extends object, Key extends PropertyKey>(value: ObjectType, key: Key): key is Key & keyof ObjectType {
-	return Object.hasOwn(value, key);
+	return Object.prototype.hasOwnProperty.call(value, key);
 }
 
 /**
@@ -357,7 +357,7 @@ export function hasOwn<ObjectType extends object, Key extends PropertyKey>(value
  *
  * @remarks 支持循环引用、共享引用、Symbol 键、对象原型、ArrayBuffer、DataView、Date、Map、RegExp、Set 和 TypedArray。
  * Map 的键保持原引用，函数及其他不可克隆值在嵌套位置保持原引用；只复制自有可枚举属性。
- * @param value - 需要深复制的任意值。
+ * @param value - 需要深复制的任意值
  * @returns 与输入类型一致且不共享可克隆嵌套值的新值；原始类型直接返回自身。
  */
 export function cloneDeep<Value>(value: Value): Value {
@@ -369,8 +369,8 @@ export function cloneDeep<Value>(value: Value): Value {
  *
  * @remarks 原始值使用 SameValueZero 语义；支持循环引用、数组、对象、ArrayBuffer、DataView、Date、Error、Map、RegExp、Set、Symbol 和 TypedArray。
  * 对象只比较自有可枚举字符串与 Symbol 属性，函数及其他不支持的宿主对象仅在引用相同时相等。
- * @param left - 第一待比较值。
- * @param right - 第二待比较值。
+ * @param left - 第一待比较值
+ * @param right - 第二待比较值
  * @returns 两个值深度等价时返回 `true`。
  */
 export function isEqual(left: unknown, right: unknown): boolean {
@@ -381,7 +381,7 @@ export function isEqual(left: unknown, right: unknown): boolean {
  * 从对象中选择指定自有可枚举属性。
  *
  * @remarks 固定键元组保留精确返回类型；动态数组中可能被选择或排除的键在返回类型中保持可选。
- * @param source - 不会被修改的源对象。
+ * @param source - 不会被修改的源对象
  * @param keys - 需要保留的键；不存在的键被忽略。
  * @returns 新对象，保持 `keys` 的遍历顺序。
  */
@@ -402,9 +402,9 @@ export function pick<Source extends object>(source: Source, keys: readonly Prope
  * 浅复制对象并删除指定属性。
  *
  * @remarks 固定键元组保留精确返回类型；动态数组中可能被选择或排除的键在返回类型中保持可选。
- * @param source - 不会被修改的源对象。
- * @param keys - 需要排除的键。
- * @returns 包含其余自有可枚举字符串与 Symbol 属性的新对象。
+ * @param source - 不会被修改的源对象
+ * @param keys - 需要排除的键
+ * @returns 包含其余自有可枚举字符串与 Symbol 属性的新对象
  */
 export function omit<Source extends object, const Keys extends readonly (keyof Source)[]>(
 	source: Source,
@@ -420,9 +420,9 @@ export function omit<Source extends object>(source: Source, keys: readonly Prope
 /**
  * 按条件排除对象的自有可枚举属性。
  *
- * @param source - 不会被修改的源对象。
+ * @param source - 不会被修改的源对象
  * @param predicate - 接收属性值、键和源对象；返回真值时排除该属性。
- * @returns 由未匹配属性组成的新对象。
+ * @returns 由未匹配属性组成的新对象
  */
 export function omitBy<Source extends object>(
 	source: Source,
@@ -438,9 +438,9 @@ export function omitBy<Source extends object>(
 /**
  * 按条件选择对象的自有可枚举属性。
  *
- * @param source - 不会被修改的源对象。
+ * @param source - 不会被修改的源对象
  * @param predicate - 接收属性值、键和源对象；返回真值时保留该属性。
- * @returns 由匹配属性组成的新对象。
+ * @returns 由匹配属性组成的新对象
  */
 export function pickBy<Source extends object>(
 	source: Source,
@@ -456,9 +456,9 @@ export function pickBy<Source extends object>(
 /**
  * 映射对象的自有可枚举属性值。
  *
- * @param source - 不会被修改的源对象。
- * @param mapper - 接收值、键和源对象的映射函数。
- * @returns 保留原键的新对象。
+ * @param source - 不会被修改的源对象
+ * @param mapper - 接收值、键和源对象的映射函数
+ * @returns 保留原键的新对象
  */
 export function mapValues<Source extends object, Result>(
 	source: Source,
@@ -475,8 +475,8 @@ export function mapValues<Source extends object, Result>(
  * 对自有可枚举属性执行 SameValue 浅比较。
  *
  * @remarks 嵌套对象只比较引用；`NaN` 相等，`0` 与 `-0` 不相等。
- * @param left - 第一对象。
- * @param right - 第二对象。
+ * @param left - 第一对象
+ * @param right - 第二对象
  * @returns 自有可枚举键集合与对应值均满足 SameValue 时返回 `true`。
  */
 export function shallowEqual(left: object, right: object): boolean {
@@ -484,19 +484,19 @@ export function shallowEqual(left: object, right: object): boolean {
 	const leftKeys = Reflect.ownKeys(left).filter((key) => Object.prototype.propertyIsEnumerable.call(left, key));
 	const rightKeys = Reflect.ownKeys(right).filter((key) => Object.prototype.propertyIsEnumerable.call(right, key));
 	if (leftKeys.length !== rightKeys.length) return false;
-	return leftKeys.every((key) => Object.hasOwn(right, key) && Object.is(Reflect.get(left, key), Reflect.get(right, key)));
+	return leftKeys.every((key) => Object.prototype.hasOwnProperty.call(right, key) && Object.is(Reflect.get(left, key), Reflect.get(right, key)));
 }
 
 /**
  * 把 Query 原始值规范化为文本。
  *
- * @param value - 已排除空值的字符串、数字、布尔值或 BigInt。
- * @returns 与 URLSearchParams 兼容的文本值。
+ * @param value - 已排除空值的字符串、数字、布尔值或 BigInt
+ * @returns 与 URLSearchParams 兼容的文本值
  * @throws `RangeError` 当数字不是有限值。
  */
 const serializeQueryValue = (value: Exclude<QueryPrimitive, null | undefined>): string => {
 	if (typeof value === "number" && !Number.isFinite(value)) {
-		throw new RangeError("查询参数中的数字必须是有限数。");
+		throw new RangeError("Query parameter numbers must be finite.");
 	}
 	return String(value);
 };
@@ -505,22 +505,26 @@ const serializeQueryValue = (value: Exclude<QueryPrimitive, null | undefined>): 
  * 将对象序列化为标准 URL 查询字符串。
  *
  * @remarks `null` 与 `undefined` 被跳过；数组使用重复键；返回值不会修改输入。
- * @param value - 查询参数对象。
- * @param options - 排序、空格和问号前缀选项。
+ * @param value - 查询参数对象
+ * @param options - 排序、空格和问号前缀选项
  * @returns URL 编码后的查询字符串；没有参数时始终返回空字符串。
  * @throws `RangeError` 当参数包含 `NaN` 或无穷数字。
+ * @throws `URIError` 当键或值包含孤立的 UTF-16 代理项。
  */
 export function toQueryString(value: Readonly<Record<string, QueryValue>>, options: QueryStringOptions = {}): string {
 	const entries = Object.entries(value);
 	if (options.sort) entries.sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));
-	const parameters = new URLSearchParams();
+	const parameters: string[] = [];
 	for (const [key, rawValue] of entries) {
 		const values = isQueryPrimitiveArray(rawValue) ? rawValue : [rawValue];
 		for (const item of values) {
-			if (item !== null && item !== undefined) parameters.append(key, serializeQueryValue(item));
+			if (item !== null && item !== undefined) {
+				parameters.push(`${encodeURIComponent(key)}=${encodeURIComponent(serializeQueryValue(item))}`);
+			}
 		}
 	}
-	let result = parameters.toString();
-	if (options.space === "percent") result = result.replace(/\+/gu, "%20");
+	// 补齐表单编码字符集，保留已有查询字符串的输出格式。
+	let result = parameters.join("&").replace(/[!'()~]/gu, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`);
+	if (options.space !== "percent") result = result.replace(/%20/gu, "+");
 	return result && options.prefixQuestionMark ? `?${result}` : result;
 }

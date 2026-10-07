@@ -174,6 +174,23 @@ describe("installation identity", () => {
 	});
 });
 
+describe("partial Web Crypto implementations", () => {
+	it("uses digest without requiring unrelated cryptographic methods", async () => {
+		const subtle = crypto.subtle;
+		vi.stubGlobal("crypto", { subtle: { digest: subtle.digest.bind(subtle) } });
+		expect(await SHA256Encrypt("abc")).toBe("BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD");
+		await expect(HMACSHA256Encrypt("abc", "key")).rejects.toThrow("does not support Web Crypto SubtleCrypto");
+	});
+
+	it("uses HMAC with only key import and signing", async () => {
+		const expected = await HMACSHA256Encrypt("abc", "key");
+		const subtle = crypto.subtle;
+		vi.stubGlobal("crypto", { subtle: { importKey: subtle.importKey.bind(subtle), sign: subtle.sign.bind(subtle) } });
+		expect(await HMACSHA256Encrypt("abc", "key")).toBe(expected);
+		await expect(SHA256Encrypt("abc")).rejects.toThrow("does not support Web Crypto SubtleCrypto");
+	});
+});
+
 describe("Web Crypto utilities", () => {
 	it("falls back for random bytes when Web Crypto is unavailable", () => {
 		vi.stubGlobal("crypto", undefined);
@@ -262,7 +279,7 @@ describe("Web Crypto utilities", () => {
 			getRandomValues: <Value extends ArrayBufferView>(value: Value) => value,
 		});
 		expect(GenerateRandomBytes(2)).toEqual(Uint8Array.of(0, 0));
-		await expect(SHA256Encrypt("value")).rejects.toThrow("不支持 Web Crypto SubtleCrypto");
+		await expect(SHA256Encrypt("value")).rejects.toThrow("does not support Web Crypto SubtleCrypto");
 	});
 
 	it("authenticates AES-GCM text with direct keys and passwords", async () => {
@@ -274,7 +291,17 @@ describe("Web Crypto utilities", () => {
 		expect((await AESDecryptWithPassword(payload, "correct horse battery staple")).parseJson<{ looks: string }>()).toEqual({
 			looks: "json",
 		});
-		await expect(AESDecryptWithPassword(payload, "wrong password")).rejects.toThrow("无法认证或解密载荷");
+		await expect(AESDecryptWithPassword(payload, "wrong password")).rejects.toThrow("Unable to authenticate or decrypt the payload");
+	});
+
+	it("uses the shared UTF-8 fallback for Web Crypto text", async () => {
+		vi.stubGlobal("TextEncoder", undefined);
+		vi.stubGlobal("TextDecoder", undefined);
+		const text = "中文 🚀";
+		const authenticated = await AESEncryptAuthenticated(text, "application key");
+		expect(await AESDecryptAuthenticated(authenticated, "application key")).toBe(text);
+		const payload = await AESEncryptWithPassword(text, "password", 100_000);
+		expect(await AESDecryptWithPassword(payload, "password")).toBe(text);
 	});
 
 	it("rejects unsupported and tampered payloads", async () => {
@@ -284,7 +311,9 @@ describe("Web Crypto utilities", () => {
 		const mutationIndex = payload.length - 2;
 		const replacement = payload[mutationIndex] === "A" ? "B" : "A";
 		const tampered = `${payload.slice(0, mutationIndex)}${replacement}${payload.slice(mutationIndex + 1)}`;
-		await expect(AESDecryptWithPassword(tampered, "correct horse battery staple")).rejects.toThrow("无法认证或解密载荷");
+		await expect(AESDecryptWithPassword(tampered, "correct horse battery staple")).rejects.toThrow(
+			"Unable to authenticate or decrypt the payload"
+		);
 	});
 
 	it("rejects plaintext that could violate the bounded payload contract", async () => {

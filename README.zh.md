@@ -73,14 +73,17 @@ console.log(encoded, size);
 
 `object` 模块提供不依赖第三方库的深复制、深度比较和按条件筛选属性能力。数组工具支持 SameValueZero 对称差集，`once` 则会保留第一次调用的返回值、Promise 引用或同步错误。
 
+SDK 自身生成的报错提示统一使用英文。错误处理应依据异常类型或名称，不匹配消息文本；调用方和平台错误保持原样传播。
+
 ## 运行时契约
 
 - 包管理器入口为纯 ESM；CDN 入口为单独压缩的 IIFE。
-- 面向 ES2022 现代浏览器与 WebView。
+- ESM 与 IIFE 产物使用 ES2022 语法目标；平台 API 是否可用需独立判断。
 - Vue 3.5.11 及以上版本通过必须安装的 Peer Dependency 接入。
-- 调用时检测运行时注入的 `uni` 和 App-Plus `plus`，并兼容对应全局属性。
+- 调用时检查并直接使用 `uni.xxx`；App-Plus 直接通过 `typeof plus` 判断。
 - 导入阶段不访问 `window`、Storage 或 `uni`；不支持的调用明确失败。
 - 不注入 Web Crypto、URL、Intl、TextEncoder 等 Polyfill。
+- 文本编解码统一使用内部 UTF-8 实现，不依赖 TextEncoder / TextDecoder，不修改全局对象；非法 UTF-8 抛出 TypeError。
 
 ## 文档
 

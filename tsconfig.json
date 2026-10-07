@@ -4,16 +4,16 @@
 		"target": "ES2022",
 		// Vue TSX 类型保留 JSX，实际转换由消费项目完成。
 		"jsx": "preserve",
-		// 覆盖现代浏览器、WebView 和可迭代 DOM 集合。
-		"lib": ["ES2022", "DOM", "DOM.Iterable"],
+		// 提供 ES2022、DOM 和可迭代 DOM 集合类型；仅补充 Worker 的 importScripts 声明，不引入完整 Worker 全局类型。
+		"lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker.ImportScripts"],
 		// 强制所有输入按模块处理，避免无 import/export 文件退化为全局脚本。
 		"moduleDetection": "force",
 		// 保留 ESM 语法交由 tsdown 构建。
 		"module": "ESNext",
 		// 按打包器规则解析 package exports 和 ESM。
 		"moduleResolution": "Bundler",
-		// 不自动引入 @types 全局声明；显式导入的模块仍会解析其类型。
-		"types": [],
+		// 显式加载 Node.js（如 process）及 uni-app（如 uni、plus）的全局类型，不自动加载未列出的类型包。
+		"types": ["node", "@dcloudio/types"],
 		// 启用 strict 选项族；额外检查及单项覆盖由下方选项决定。
 		"strict": true,
 		// 派生类覆盖成员时必须显式使用 override。

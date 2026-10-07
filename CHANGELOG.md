@@ -4,6 +4,27 @@ All notable changes to this project are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and releases should follow [Semantic Versioning](https://semver.org/).
 
+## [2.1.11] - 2026-10-07
+
+### Fixed
+
+- Replace internal query codecs with native encodeURIComponent/decodeURIComponent while preserving form escaping and space options. Malformed percent-encoded queries and lone surrogates passed to query encoding now throw URIError; raw unescaped surrogates follow native decoding behavior.
+
+- Format default Chinese relative times and default byte amounts internally without Intl; retain native formatting for explicit locales and use standard casing when no locale is supplied.
+
+- Support legacy MediaQueryList listeners with scope cleanup and check only the SubtleCrypto methods required by each operation.
+
+- Use one internal UTF-8 implementation independently of native TextEncoder or TextDecoder, preserving strict decoding, BOM handling, and lone-surrogate replacement for Base64, storage codecs, and Web Crypto text.
+- Call host APIs through their native identifiers, including `uni`, `window`, `document`, `navigator`, `crypto`, `process`, `Intl.Segmenter`, and `ResizeObserver`, while retaining call-time capability checks.
+- Remove Object.hasOwn, Array/String.at, URLSearchParams, and import-time globalThis requirements from core utilities; use native URI component functions for query encoding/decoding without platform polyfills.
+- Retain ES2022 output syntax and check optional platform capabilities at call time; no older browser syntax target is implied.
+
+### Documentation and Tooling
+
+- Standardize SDK-generated error messages in English while preserving error types, names, causes, and caller/platform errors.
+- Correct TSDoc labels and runtime descriptions; synchronize bilingual documentation with native query error semantics.
+- Include Node, DCloud, DOM, and worker importScripts types for development without injecting runtime polyfills.
+
 ## [2.1.10] - 2026-09-27
 
 ### Added
@@ -155,6 +176,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - Added authenticated ciphertext validation, bounded crypto parameters and payloads, unbiased Web Crypto randomness, prototype-safe query/object transforms, and namespace-scoped Storage cleanup.
 
+[2.1.11]: https://gitee.com/FastDotnet/fast.utils/compare/v2.1.10...v2.1.11
 [2.1.10]: https://gitee.com/FastDotnet/fast.utils/compare/v2.1.9...v2.1.10
 [2.1.9]: https://gitee.com/FastDotnet/fast.utils/compare/v2.1.8...v2.1.9
 [2.1.8]: https://gitee.com/FastDotnet/fast.utils/compare/v2.1.7...v2.1.8

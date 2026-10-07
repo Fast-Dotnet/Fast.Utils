@@ -6,7 +6,7 @@
 			"@fast-china/utils": ["../src/index.ts"]
 		},
 		// 测试由 Node.js 执行，需要显式加载 Node.js 全局类型。
-		"types": ["node"],
+		"types": ["node", "@dcloudio/types"],
 		// 测试项目只检查类型，不生成声明。
 		"declaration": false,
 		"declarationMap": false,

@@ -109,21 +109,6 @@ const verifyBundledCrypto = () => {
 	assert.doesNotMatch(source, /["']crypto-js(?:\/|["'])/u, "ESM artifacts must not retain crypto-js package imports.");
 };
 
-/** 验证 uni-app 的运行时自由标识符不会被错误收窄为 `globalThis` 属性。 */
-const verifyAppRuntimeLookup = () => {
-	const source = fs.readFileSync(path.join(distRoot, "internal", "runtime.mjs"), "utf8");
-	assert.match(
-		source,
-		/typeof plus\s*===\s*["']undefined["']\s*\?\s*runtimeGlobals\.plus\s*:\s*plus/u,
-		"App-Plus runtime lookup must prefer the guarded plus identifier and retain the global-property fallback."
-	);
-	assert.match(
-		source,
-		/typeof uni\s*===\s*["']undefined["']\s*\?\s*runtimeGlobals\.uni\s*:\s*uni/u,
-		"uni-app runtime lookup must prefer the guarded uni identifier and retain the global-property fallback."
-	);
-};
-
 if (fs.existsSync(consumerPath)) throw new Error(`Refusing to overwrite existing fixture: ${consumerPath}`);
 
 try {
@@ -131,7 +116,6 @@ try {
 	verifyRelativeImports();
 	verifySourceMaps();
 	verifyBundledCrypto();
-	verifyAppRuntimeLookup();
 	assert.throws(
 		() => vm.runInNewContext(fs.readFileSync(path.join(distRoot, "index.global.min.js"), "utf8"), { TextDecoder, TextEncoder }),
 		/Vue is not defined/u
@@ -145,6 +129,63 @@ try {
 	assert.equal(typeof cdnContext.FastUtils.useEmits, "function");
 	assert.equal(vm.runInNewContext('FastUtils.decodeBase64(FastUtils.encodeBase64("{\\"id\\":1}")).parseJson().id', cdnContext), 1);
 	assert.equal(vm.runInNewContext('FastUtils.decodeBase64(FastUtils.encodeBase64("plain")).parseJson()', cdnContext), "plain");
+	// 模拟 uni 编译器注入的词法标识符，确保 API 调用不依赖 globalThis 属性或 Encoding API。
+	const appContext = vm.createContext({ Vue });
+	vm.runInContext(
+		`Object.hasOwn = undefined;
+		String.prototype.at = undefined;
+		Array.prototype.at = undefined;
+		globalThis.URLSearchParams = undefined;
+		globalThis.Intl = undefined;
+		const values = new Map();
+		const uni = {
+			getStorageInfoSync: () => ({ keys: [...values.keys()] }),
+			getStorageSync: key => values.get(key) ?? "",
+			removeStorageSync: key => values.delete(key),
+			setStorageSync: (key, value) => values.set(key, value),
+			setClipboardData(options) { this.copied = options.data; options.success(); }
+		};
+		const plus = {};
+		const window = { document: {} };`,
+		appContext
+	);
+	vm.runInContext(fs.readFileSync(path.join(distRoot, "index.global.min.js"), "utf8"), appContext);
+	assert.equal(vm.runInContext("globalThis.uni", appContext), undefined);
+	assert.equal(vm.runInContext("globalThis.window", appContext), undefined);
+	assert.equal(vm.runInContext("globalThis.plus", appContext), undefined);
+	assert.equal(
+		vm.runInContext(
+			`(() => {
+			const lines = [];
+			const logger = FastUtils.createLogger({ uniAppPlusSplit: true, sink: {
+				debug() {}, warn() {}, error() {}, log(...data) { lines.push(data); }
+			} });
+			logger.log("App", "ready", { id: 1 });
+			return lines.length === 2 && lines[0].length === 1 && lines[1][0] === '{\\n  "id": 1\\n}';
+		})()`,
+			appContext
+		),
+		true
+	);
+	assert.equal(vm.runInContext("FastUtils.isUniApp() && FastUtils.isBrowser()", appContext), true);
+	assert.equal(vm.runInContext("FastUtils.formatBytes(1536)", appContext), "1.5 KiB");
+	assert.equal(vm.runInContext("FastUtils.formatRelativeTime(86400000, { now: 0 })", appContext), "明天");
+	assert.equal(vm.runInContext('FastUtils.decodeBase64(FastUtils.encodeBase64("中文 🚀"))', appContext), "中文 🚀");
+	await vm.runInContext('FastUtils.copy("Fast clipboard")', appContext);
+	assert.equal(vm.runInContext("uni.copied", appContext), "Fast clipboard");
+	vm.runInContext('FastUtils.Local.set("text", "中文 🚀", { crypto: true })', appContext);
+	assert.equal(vm.runInContext('FastUtils.Local.get("text", { crypto: true })', appContext), "中文 🚀");
+	assert.equal(vm.runInContext('FastUtils.hasOwn(Object.create(null, { key: { value: 1 } }), "key")', appContext), true);
+	assert.equal(
+		vm.runInContext('FastUtils.decodeSecureBase64(FastUtils.encodeSecureBase64("Fast工具".repeat(4)))', appContext),
+		"Fast工具".repeat(4)
+	);
+	assert.equal(vm.runInContext('FastUtils.toQueryString({ q: "中文 +" })', appContext), "q=%E4%B8%AD%E6%96%87+%2B");
+	assert.equal(vm.runInContext('FastUtils.parseQueryString("q=%E4%B8%AD%E6%96%87+%2B").q', appContext), "中文 +");
+	const legacyContext = vm.createContext({ Vue });
+	vm.runInContext("delete globalThis.globalThis;", legacyContext);
+	vm.runInContext(fs.readFileSync(path.join(distRoot, "index.global.min.js"), "utf8"), legacyContext);
+	assert.equal(vm.runInContext('FastUtils.decodeBase64(FastUtils.encodeBase64("中文 🚀"))', legacyContext), "中文 🚀");
 	fs.writeFileSync(
 		consumerPath,
 		[

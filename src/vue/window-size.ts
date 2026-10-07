@@ -1,5 +1,4 @@
 import { getCurrentScope, readonly, shallowRef } from "vue";
-import { runtimeGlobals } from "../internal/runtime";
 import { useEventListener } from "./event-listener";
 import type { ShallowRef } from "vue";
 
@@ -18,9 +17,8 @@ export interface UseWindowSizeReturn {
 export function useWindowSize(): UseWindowSizeReturn {
 	const width = shallowRef(0);
 	const height = shallowRef(0);
-	const window = runtimeGlobals.window;
-	if (window !== undefined) {
-		if (getCurrentScope() === undefined) throw new Error("`useWindowSize` 必须在 Vue 响应式作用域内调用。");
+	if (typeof window !== "undefined") {
+		if (getCurrentScope() === undefined) throw new Error("`useWindowSize` must be called within a Vue reactive scope.");
 		const update = () => {
 			width.value = window.innerWidth;
 			height.value = window.innerHeight;

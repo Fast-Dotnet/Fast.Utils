@@ -1,5 +1,3 @@
-import { getRuntimeUni, runtimeGlobals } from "../internal/runtime";
-
 const defaultRandomAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 const defaultStringLocale = "en-US";
 const maximumRandomStringLength = 1_000_000;
@@ -10,18 +8,12 @@ const uuidV4Pattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[
 /** 查询字符串解析结果；重复键保留为数组，不存在的键读取为 `undefined`。 */
 export type ParsedQueryParameters = Record<string, string | string[] | undefined>;
 
-/** 大小写与字素分割可接受的显式语言；省略时固定使用 `en-US` 以保持输出稳定。 */
+/** 大小写与字素分割可接受的显式语言；省略时大小写转换使用标准 Unicode 规则，字素分割固定使用 `en-US`。 */
 export type StringLocale = string | readonly string[] | undefined;
-
-/** uni-app 文本复制所需的最小运行时能力。 */
-interface UniClipboard {
-	setClipboardData: (options: { data: string; fail: (error: unknown) => void; success: () => void }) => void;
-}
 
 /** 使用 Web Crypto 填充随机值，能力缺失时回退到 `Math.random()`。 */
 const fillRandomValues = (values: Uint8Array<ArrayBuffer> | Uint32Array<ArrayBuffer>): void => {
-	const crypto = runtimeGlobals.crypto;
-	if (typeof crypto?.getRandomValues === "function") {
+	if (typeof crypto !== "undefined" && typeof crypto?.getRandomValues === "function") {
 		crypto.getRandomValues(values);
 		return;
 	}
@@ -33,7 +25,7 @@ const fillRandomValues = (values: Uint8Array<ArrayBuffer> | Uint32Array<ArrayBuf
  * 从随机字节创建 UUID v4。
  *
  * @param bytes - 长度至少为 16 的随机字节；Version 与 Variant 位会被原地修改。
- * @returns 小写、带连字符的 RFC 4122 UUID v4。
+ * @returns 小写、带连字符的 RFC 4122 UUID v4
  */
 const createUuidV4FromBytes = (bytes: Uint8Array): string => {
 	bytes[6] = ((bytes[6] ?? 0) & 15) | 64;
@@ -45,30 +37,29 @@ const createUuidV4FromBytes = (bytes: Uint8Array): string => {
 /**
  * 按用户可见字素切分文本。
  *
- * @param value - 待切分字符串。
+ * @param value - 待切分字符串
  * @param locale - Segmenter 使用的显式语言；省略时使用固定默认值。
- * @returns 保留组合 Emoji、变音符号和连接序列的字素数组。
+ * @returns 保留组合 Emoji、变音符号和连接序列的字素数组
  * @throws `Error` 当平台缺少 `Intl.Segmenter`。
  */
 const splitGraphemes = (value: string, locale: StringLocale): string[] => {
-	const Segmenter = runtimeGlobals.Intl?.Segmenter;
-	if (typeof Segmenter !== "function") {
-		throw new Error("当前运行环境不支持 Intl.Segmenter。");
+	if (typeof Intl === "undefined" || typeof Intl.Segmenter !== "function") {
+		throw new Error("The current runtime does not support Intl.Segmenter.");
 	}
-	const segmenter = new Segmenter(locale ?? defaultStringLocale, { granularity: "grapheme" });
+	const segmenter = new Intl.Segmenter(locale ?? defaultStringLocale, { granularity: "grapheme" });
 	return Array.from(segmenter.segment(value), ({ segment }) => segment);
 };
 
 /**
  * 重复执行 URI 组件解码，直到值稳定或达到深度上限。
  *
- * @param value - 不包含 URI 路径语义的编码组件。
- * @param maxDepth - 最大解码次数，默认 `10`。
- * @returns 解码稳定或达到上限后的组件文本。
+ * @param value - 不包含 URI 路径语义的编码组件
+ * @param maxDepth - 最大解码次数，默认 `10`
+ * @returns 解码稳定或达到上限后的组件文本
  * @throws `URIError` 当任一层包含非法百分号序列；深度非法时抛出 `RangeError`。
  */
 export function decodeURIComponentRepeatedly(value: string, maxDepth = 10): string {
-	if (!Number.isSafeInteger(maxDepth) || maxDepth < 0) throw new RangeError("`maxDepth` 必须是非负安全整数。");
+	if (!Number.isSafeInteger(maxDepth) || maxDepth < 0) throw new RangeError("`maxDepth` must be a nonnegative safe integer.");
 	let decoded = value;
 	for (let index = 0; index < maxDepth; index += 1) {
 		const next = decodeURIComponent(decoded);
@@ -82,8 +73,9 @@ export function decodeURIComponentRepeatedly(value: string, maxDepth = 10): stri
  * 解析带 `://` 的绝对 URL、`?query` 或纯查询字符串。
  *
  * @remarks 纯查询字符串值中的未编码 `?` 会作为值内容保留；片段标识及其后内容被忽略。
- * @param input - 完整 URL、带前导问号或不带前导问号的查询文本。
+ * @param input - 完整 URL、带前导问号或不带前导问号的查询文本
  * @returns 重复键对应字符串数组，空值保留为空字符串。
+ * @throws `URIError` 当键或值包含非法百分号编码或无效的 UTF-8 字节序列。
  */
 export function parseQueryString(input: string): ParsedQueryParameters {
 	const fragmentStart = input.indexOf("#");
@@ -93,8 +85,12 @@ export function parseQueryString(input: string): ParsedQueryParameters {
 	if (isAbsoluteUrl && queryStart < 0) return {};
 	const query = isAbsoluteUrl ? withoutFragment.slice(queryStart + 1) : withoutFragment.replace(/^\?/u, "");
 	const result: ParsedQueryParameters = {};
-	for (const [key, value] of new URLSearchParams(query)) {
-		const existing = Object.hasOwn(result, key) ? result[key] : undefined;
+	for (const entry of query.replace(/^\?/u, "").replace(/\+/gu, " ").split("&")) {
+		if (entry === "") continue;
+		const separator = entry.indexOf("=");
+		const key = decodeURIComponent(separator < 0 ? entry : entry.slice(0, separator));
+		const value = decodeURIComponent(separator < 0 ? "" : entry.slice(separator + 1));
+		const existing = Object.prototype.hasOwnProperty.call(result, key) ? result[key] : undefined;
 		if (existing === undefined) {
 			// defineProperty 让 `__proto__` 成为普通自有键，不触发 Object.prototype Setter。
 			Object.defineProperty(result, key, { configurable: true, enumerable: true, value, writable: true });
@@ -127,8 +123,8 @@ export function isValidJson(value: string): boolean {
  * 按大小写边界、连字符、下划线与空白切分单词。
  *
  * @example `XMLHttp_request` 返回 `["XML", "Http", "request"]`。
- * @param value - 待拆分文本。
- * @returns 删除空项、保持输入顺序的单词数组。
+ * @param value - 待拆分文本
+ * @returns 删除空项、保持输入顺序的单词数组
  */
 export function splitWords(value: string): string[] {
 	return value
@@ -143,39 +139,39 @@ export function splitWords(value: string): string[] {
  * 将首个 Unicode 码点转为大写。
  *
  * @param value - 输入文本；空字符串保持为空。
- * @param locale - 显式语言，默认固定为 `en-US`。
- * @returns 首个 Unicode 码点转换后的文本。
+ * @param locale - 显式语言；省略时使用标准 Unicode 大小写规则。
+ * @returns 首个 Unicode 码点转换后的文本
  */
 export function upperFirst(value: string, locale?: StringLocale): string {
 	const characters = Array.from(value);
 	const first = characters.shift();
-	return first === undefined ? "" : first.toLocaleUpperCase(locale ?? defaultStringLocale) + characters.join("");
+	return first === undefined ? "" : (locale === undefined ? first.toUpperCase() : first.toLocaleUpperCase(locale)) + characters.join("");
 }
 
 /**
  * 将首个 Unicode 码点转为小写。
  *
  * @param value - 输入文本；空字符串保持为空。
- * @param locale - 显式语言，默认固定为 `en-US`。
- * @returns 首个 Unicode 码点转换后的文本。
+ * @param locale - 显式语言；省略时使用标准 Unicode 大小写规则。
+ * @returns 首个 Unicode 码点转换后的文本
  */
 export function lowerFirst(value: string, locale?: StringLocale): string {
 	const characters = Array.from(value);
 	const first = characters.shift();
-	return first === undefined ? "" : first.toLocaleLowerCase(locale ?? defaultStringLocale) + characters.join("");
+	return first === undefined ? "" : (locale === undefined ? first.toLowerCase() : first.toLocaleLowerCase(locale)) + characters.join("");
 }
 
 /**
  * 将文本转换为 camelCase。
  *
- * @param value - 由大小写、连字符、下划线或空白分隔的文本。
- * @param locale - 大小写转换使用的语言，默认固定为 `en-US`。
- * @returns camelCase 文本。
+ * @param value - 由大小写、连字符、下划线或空白分隔的文本
+ * @param locale - 大小写转换使用的语言；省略时使用标准 Unicode 大小写规则。
+ * @returns camelCase 文本
  */
 export function camelCase(value: string, locale?: StringLocale): string {
 	return splitWords(value)
 		.map((part, index) => {
-			const normalized = part.toLocaleLowerCase(locale ?? defaultStringLocale);
+			const normalized = locale === undefined ? part.toLowerCase() : part.toLocaleLowerCase(locale);
 			return index === 0 ? normalized : upperFirst(normalized, locale);
 		})
 		.join("");
@@ -185,8 +181,8 @@ export function camelCase(value: string, locale?: StringLocale): string {
  * 将文本转换为 PascalCase。
  *
  * @param value - 参数语义与 {@link camelCase} 一致。
- * @param locale - 大小写转换使用的显式语言。
- * @returns PascalCase 文本。
+ * @param locale - 大小写转换使用的显式语言
+ * @returns PascalCase 文本
  */
 export function pascalCase(value: string, locale?: StringLocale): string {
 	return upperFirst(camelCase(value, locale), locale);
@@ -196,28 +192,28 @@ export function pascalCase(value: string, locale?: StringLocale): string {
  * 将文本转换为 kebab-case。
  *
  * @param value - 参数语义与 {@link camelCase} 一致。
- * @param locale - 大小写转换使用的显式语言。
- * @returns kebab-case 文本。
+ * @param locale - 大小写转换使用的显式语言
+ * @returns kebab-case 文本
  */
 export function kebabCase(value: string, locale?: StringLocale): string {
 	return splitWords(value)
-		.map((part) => part.toLocaleLowerCase(locale ?? defaultStringLocale))
+		.map((part) => (locale === undefined ? part.toLowerCase() : part.toLocaleLowerCase(locale)))
 		.join("-");
 }
 
 /**
  * 按 Unicode 字素簇截断文本，避免拆开 emoji、组合音标或代理对。
  *
- * @param value - 输入文本。
- * @param maxLength - 保留的最大字素簇数量。
+ * @param value - 输入文本
+ * @param maxLength - 保留的最大字素簇数量
  * @param suffix - 被截断时追加的文本，默认单字符省略号 `…`；不计入上限。
- * @param locale - 字素分割语言，默认固定为 `en-US`。
+ * @param locale - 字素分割语言，默认固定为 `en-US`
  * @returns 未超限时返回原字符串，否则返回截断内容与后缀。
  * @throws `RangeError` 当 `maxLength` 不是非负安全整数或 Locale 无效；缺少
  * `Intl.Segmenter` 时抛出 `Error`。
  */
 export function truncateGraphemes(value: string, maxLength: number, suffix = "…", locale?: StringLocale): string {
-	if (!Number.isSafeInteger(maxLength) || maxLength < 0) throw new RangeError("`maxLength` 必须是非负安全整数。");
+	if (!Number.isSafeInteger(maxLength) || maxLength < 0) throw new RangeError("`maxLength` must be a nonnegative safe integer.");
 	const segments = splitGraphemes(value, locale);
 	return segments.length > maxLength ? segments.slice(0, maxLength).join("") + suffix : value;
 }
@@ -227,24 +223,20 @@ export function truncateGraphemes(value: string, maxLength: number, suffix = "�
  *
  * @remarks uni-app 使用 `setClipboardData`；浏览器优先使用 Clipboard API，并在该 API 不可用时
  * 回退到 `document.execCommand("copy")`。平台拒绝访问剪贴板时不会静默忽略错误。
- * @param value - 要复制的文本。
- * @returns 复制完成后兑现的 Promise。
+ * @param value - 要复制的文本
+ * @returns 复制完成后兑现的 Promise
  * @throws `Error` 当运行时没有可用的剪贴板能力或复制失败。
  */
 export async function copy(value: string): Promise<void> {
-	const uni = getRuntimeUni();
-	if (uni !== undefined) {
-		if ((typeof uni !== "object" && typeof uni !== "function") || uni === null) {
-			throw new TypeError("全局 uni 对象未提供 `setClipboardData`。");
+	if (typeof uni !== "undefined") {
+		if (uni === null || typeof uni.setClipboardData !== "function") {
+			throw new TypeError("The global uni object does not provide `setClipboardData`.");
 		}
-		const clipboard = uni as Partial<UniClipboard>;
-		const setClipboardData = clipboard.setClipboardData?.bind(clipboard);
-		if (setClipboardData === undefined) throw new TypeError("全局 uni 对象未提供 `setClipboardData`。");
 		await new Promise<void>((resolve, reject) => {
-			setClipboardData({
+			uni.setClipboardData({
 				data: value,
 				fail: (error: unknown) => {
-					reject(error instanceof Error ? error : new Error("文本复制到剪贴板失败。", { cause: error }));
+					reject(error instanceof Error ? error : new Error("Failed to copy text to the clipboard.", { cause: error }));
 				},
 				success: resolve,
 			});
@@ -252,16 +244,22 @@ export async function copy(value: string): Promise<void> {
 		return;
 	}
 
-	const browserClipboard = runtimeGlobals.navigator?.clipboard;
-	if (runtimeGlobals.isSecureContext === true && typeof browserClipboard?.writeText === "function") {
-		await browserClipboard.writeText(value);
+	if (
+		typeof isSecureContext !== "undefined" &&
+		isSecureContext &&
+		typeof navigator !== "undefined" &&
+		typeof navigator.clipboard?.writeText === "function"
+	) {
+		await navigator.clipboard.writeText(value);
 		return;
 	}
 
-	const document = runtimeGlobals.document;
+	if (typeof document === "undefined" || document === null) {
+		throw new Error("The current runtime does not support clipboard access.");
+	}
 	// eslint-disable-next-line @typescript-eslint/no-deprecated -- 兼容不支持 Clipboard API 的旧 WebView。
-	if (typeof document?.createElement !== "function" || document.body == null || typeof document.execCommand !== "function") {
-		throw new Error("当前运行环境不支持访问剪贴板。");
+	if (typeof document.createElement !== "function" || document.body == null || typeof document.execCommand !== "function") {
+		throw new Error("The current runtime does not support clipboard access.");
 	}
 	const textarea = document.createElement("textarea");
 	textarea.value = value;
@@ -279,7 +277,7 @@ export async function copy(value: string): Promise<void> {
 	} finally {
 		textarea.remove();
 	}
-	if (!copied) throw new Error("文本复制到剪贴板失败。");
+	if (!copied) throw new Error("Failed to copy text to the clipboard.");
 }
 
 /**
@@ -288,17 +286,17 @@ export async function copy(value: string): Promise<void> {
  * @remarks 优先使用 Web Crypto；平台缺少安全随机能力时回退到 `Math.random()`。
  * @param length - 字符数量，必须是 0 至 1,000,000 的安全整数。
  * @param alphabet - 不得为空、包含重复字符或超过 2^32 个 Unicode 码点。
- * @returns 由 `alphabet` 中 Unicode 码点组成的随机文本。
+ * @returns 由 `alphabet` 中 Unicode 码点组成的随机文本
  * @throws `RangeError` 当长度或字母表非法。
  */
 export function randomString(length: number, alphabet: string = defaultRandomAlphabet): string {
 	if (!Number.isSafeInteger(length) || length < 0 || length > maximumRandomStringLength) {
-		throw new RangeError(`\`length\` 必须是 0 到 ${maximumRandomStringLength} 之间的安全整数。`);
+		throw new RangeError(`\`length\` must be a safe integer between 0 and ${maximumRandomStringLength}.`);
 	}
 	const characters = Array.from(alphabet);
-	if (characters.length === 0) throw new RangeError("`alphabet` 不能为空。");
-	if (new Set(characters).size !== characters.length) throw new RangeError("`alphabet` 不能包含重复字符。");
-	if (characters.length > 0x1_0000_0000) throw new RangeError("`alphabet` 不能包含超过 2^32 个字符。");
+	if (characters.length === 0) throw new RangeError("`alphabet` must not be empty.");
+	if (new Set(characters).size !== characters.length) throw new RangeError("`alphabet` must not contain duplicate characters.");
+	if (characters.length > 0x1_0000_0000) throw new RangeError("`alphabet` must not contain more than 2^32 characters.");
 	if (length === 0) return "";
 
 	// 丢弃不能平均映射到字母表的尾部区间，避免 `%` 造成前部字符概率偏高。
@@ -325,11 +323,10 @@ export function randomString(length: number, alphabet: string = defaultRandomAlp
  *
  * @remarks 优先使用 Web Crypto；平台缺少安全随机能力时回退到 `Math.random()`。
  * 该 UUID 适合普通唯一标识，不应作为安全令牌或秘密。
- * @returns 小写、带连字符的 UUID v4。
+ * @returns 小写、带连字符的 UUID v4
  */
 export function generateUuidV4(): string {
-	const crypto = runtimeGlobals.crypto;
-	if (typeof crypto?.randomUUID === "function") return crypto.randomUUID();
+	if (typeof crypto !== "undefined" && typeof crypto?.randomUUID === "function") return crypto.randomUUID();
 	const bytes = new Uint8Array(16);
 	fillRandomValues(bytes);
 	return createUuidV4FromBytes(bytes);
@@ -349,8 +346,8 @@ export function isUuidV4(value: string): boolean {
  * 转义 HTML 文本上下文中的五个特殊字符。
  *
  * @remarks 这不是 HTML 清洗器，不能让不可信文本安全进入 URL、CSS、脚本或属性名上下文。
- * @param value - 将作为 HTML 文本节点内容的字符串。
- * @returns 转义 `&`、`<`、`>`、双引号与单引号后的文本。
+ * @param value - 将作为 HTML 文本节点内容的字符串
+ * @returns 转义 `&`、`<`、`>`、双引号与单引号后的文本
  */
 export function escapeHtml(value: string): string {
 	return value.replace(/[&<>"']/gu, (character) => {
@@ -372,7 +369,7 @@ export function escapeHtml(value: string): string {
 /**
  * 把连续 Unicode 空白折叠为单个空格并删除两端空白。
  *
- * @param value - 输入文本。
+ * @param value - 输入文本
  * @returns 规范化后的文本；全空白输入返回空字符串。
  */
 export function normalizeWhitespace(value: string): string {

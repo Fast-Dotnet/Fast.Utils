@@ -1,41 +1,83 @@
 /**
- * 延迟解析 UTF-8 TextDecoder，确保模块导入阶段不依赖 Encoding API。
+ * 使用内部实现解码 UTF-8，不依赖平台 Encoding API。
  *
- * @returns 启用 Fatal 模式的新解码器，非法 UTF-8 会直接失败。
- * @throws `Error` 当当前平台没有提供 `TextDecoder`。
+ * @param input - 不会被修改的字节或 ArrayBuffer
+ * @param options - 默认严格拒绝非法 UTF-8 并移除开头的 BOM；`fatal: false` 替换非法序列，`ignoreBOM: true` 保留 BOM。
+ * @returns 解码文本
+ * @throws `TypeError` 当严格模式的输入包含非法 UTF-8。
  */
-export const getTextDecoder = (): TextDecoder => {
-	const TextDecoderConstructor = globalThis.TextDecoder;
-	if (typeof TextDecoderConstructor !== "function") {
-		throw new Error("当前运行环境不支持 TextDecoder。");
+export const decodeUtf8 = (input: Uint8Array | ArrayBuffer, options: { fatal?: boolean; ignoreBOM?: boolean } = {}): string => {
+	const { fatal = true, ignoreBOM = false } = options;
+	const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
+	let result = "";
+	for (let index = 0; index < bytes.length;) {
+		const start = index;
+		const first = bytes[index++] ?? 0;
+		let codePoint = first;
+		let remaining = 0;
+		let lower = 0x80;
+		let upper = 0xbf;
+		if (first >= 0xc2 && first <= 0xdf) {
+			codePoint = first & 0x1f;
+			remaining = 1;
+		} else if (first >= 0xe0 && first <= 0xef) {
+			codePoint = first & 0x0f;
+			remaining = 2;
+			if (first === 0xe0) lower = 0xa0;
+			if (first === 0xed) upper = 0x9f;
+		} else if (first >= 0xf0 && first <= 0xf4) {
+			codePoint = first & 0x07;
+			remaining = 3;
+			if (first === 0xf0) lower = 0x90;
+			if (first === 0xf4) upper = 0x8f;
+		} else if (first > 0x7f) {
+			if (fatal) throw new TypeError("The input is not valid UTF-8.");
+			result += "\ufffd";
+			continue;
+		}
+		let valid = true;
+		for (let continuation = 0; continuation < remaining; continuation += 1) {
+			const byte = bytes[index];
+			if (byte === undefined || byte < lower || byte > upper) {
+				valid = false;
+				break;
+			}
+			index += 1;
+			codePoint = (codePoint << 6) | (byte & 0x3f);
+			lower = 0x80;
+			upper = 0xbf;
+		}
+		if (!valid) {
+			if (fatal) throw new TypeError("The input is not valid UTF-8.");
+			// 非法续字节留给下一轮处理，保持 WHATWG 的替换字符数量。
+			result += "\ufffd";
+		} else if (ignoreBOM || start !== 0 || codePoint !== 0xfeff) {
+			result += String.fromCodePoint(codePoint);
+		}
 	}
-	return new TextDecoderConstructor("utf-8", { fatal: true });
+	return result;
 };
 
 /**
- * 延迟解析 TextEncoder，让纯字节 API 在缺少 Encoding API 的平台仍可导入。
+ * 使用内部实现编码 UTF-8，不依赖平台 Encoding API。
  *
- * @returns 新建的 UTF-8 编码器。
- * @throws `Error` 当当前平台没有提供 `TextEncoder`。
+ * @param value - 待编码文本；孤立的 UTF-16 代理项按 TextEncoder 语义替换为 U+FFFD。
+ * @returns 使用独立 ArrayBuffer 的 UTF-8 字节数组
  */
-export const getTextEncoder = (): TextEncoder => {
-	const TextEncoderConstructor = globalThis.TextEncoder;
-	if (typeof TextEncoderConstructor !== "function") {
-		throw new Error("当前运行环境不支持 TextEncoder。");
+export const encodeUtf8 = (value: string): Uint8Array<ArrayBuffer> => {
+	const bytes: number[] = [];
+	for (const character of value) {
+		let codePoint = character.codePointAt(0) ?? 0;
+		if (codePoint >= 0xd800 && codePoint <= 0xdfff) codePoint = 0xfffd;
+		if (codePoint <= 0x7f) bytes.push(codePoint);
+		else if (codePoint <= 0x7ff) bytes.push(0xc0 | (codePoint >> 6), 0x80 | (codePoint & 0x3f));
+		else if (codePoint <= 0xffff) bytes.push(0xe0 | (codePoint >> 12), 0x80 | ((codePoint >> 6) & 0x3f), 0x80 | (codePoint & 0x3f));
+		else bytes.push(0xf0 | (codePoint >> 18), 0x80 | ((codePoint >> 12) & 0x3f), 0x80 | ((codePoint >> 6) & 0x3f), 0x80 | (codePoint & 0x3f));
 	}
-	return new TextEncoderConstructor();
+	return Uint8Array.from(bytes);
 };
 
-/**
- * 在确认平台能力后把 JavaScript 字符串编码为 UTF-8。
- *
- * @param value - 待编码文本。
- * @returns 使用独立 ArrayBuffer 的 UTF-8 字节数组。
- * @throws `Error` 当当前平台没有提供 `TextEncoder`。
- */
-export const encodeUtf8 = (value: string): Uint8Array<ArrayBuffer> => getTextEncoder().encode(value);
-
-/** 解码或解密后的字符串扩展。 */
+/** 解码或解密后的字符串扩展 */
 interface DecodedTextExtension {
 	/**
 	 * 显式把原始文本解析为 JSON 值。
@@ -69,7 +111,7 @@ const ensureParseJsonExtension = (): void => {
 	const descriptor = Object.getOwnPropertyDescriptor(String.prototype, "parseJson");
 	if (descriptor !== undefined) {
 		if (typeof descriptor.value === "function" && Reflect.get(descriptor.value, parseJsonMarker) === true) return;
-		throw new TypeError("String.prototype.parseJson 已被其他实现占用。");
+		throw new TypeError("String.prototype.parseJson is already defined by another implementation.");
 	}
 
 	try {
@@ -80,14 +122,14 @@ const ensureParseJsonExtension = (): void => {
 			writable: true,
 		});
 	} catch (cause) {
-		throw new TypeError("当前运行环境不允许安装 String.prototype.parseJson。", { cause });
+		throw new TypeError("The current runtime does not allow installing String.prototype.parseJson.", { cause });
 	}
 };
 
 /**
  * 创建可链式解析 JSON 的原始字符串。
  *
- * @param text - 解码或解密后的原始文本。
+ * @param text - 解码或解密后的原始文本
  * @returns 可直接作为字符串使用或显式调用 `.parseJson<Value>()` 的结果。
  */
 export const createDecodedText = (text: string): DecodedText => {

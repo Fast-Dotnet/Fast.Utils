@@ -28,7 +28,7 @@ describe("cancellation and timeout", () => {
 			}),
 			5
 		);
-		await expect(pending).rejects.toThrow("超过 5 毫秒");
+		await expect(pending).rejects.toThrow("timed out after 5 milliseconds");
 	});
 });
 
@@ -117,7 +117,7 @@ describe("debounce and throttle", () => {
 
 		const cancelled = debounced("cancel");
 		debounced.cancel();
-		await expect(cancelled).rejects.toThrow("防抖调用已取消");
+		await expect(cancelled).rejects.toThrow("The debounced invocation was cancelled");
 	});
 
 	it("shares a leading Promise and prevents overlap after the cooldown", async () => {

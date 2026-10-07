@@ -81,7 +81,7 @@ test("once allows callback to handle reentry and preserves Promise identity", as
 	let executions = 0;
 	const wrapped: () => number = once(() => {
 		executions += 1;
-		assert.throws(wrapped, /同步重入/u);
+		assert.throws(wrapped, /reentered synchronously/u);
 		return 42;
 	});
 	assert.equal(wrapped(), 42);

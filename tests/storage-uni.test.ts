@@ -29,6 +29,6 @@ describe("configured uni-app storage", () => {
 		Local.set("owned", 1);
 		Local.clear();
 		expect(values.get("other:key")).toBe("keep");
-		expect(() => Session.get("key")).toThrow("uni-app 中不支持 Session");
+		expect(() => Session.get("key")).toThrow("Session is not supported in uni-app");
 	});
 });

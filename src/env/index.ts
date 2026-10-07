@@ -1,6 +1,4 @@
-import { getRuntimeUni, runtimeGlobals } from "../internal/runtime";
-
-/** 可识别的主要 JavaScript 运行环境。 */
+/** 可识别的主要 JavaScript 运行环境 */
 export type RuntimeKind = "browser" | "node" | "unknown" | "worker";
 
 /**
@@ -9,7 +7,7 @@ export type RuntimeKind = "browser" | "node" | "unknown" | "worker";
  * @returns Navigator 不存在或字段类型异常时返回空字符串。
  */
 const currentUserAgent = (): string => {
-	const userAgent: unknown = runtimeGlobals.navigator?.userAgent;
+	const userAgent: unknown = typeof navigator === "undefined" ? undefined : navigator.userAgent;
 	return typeof userAgent === "string" ? userAgent : "";
 };
 /**
@@ -18,7 +16,7 @@ const currentUserAgent = (): string => {
  * @returns Navigator 不存在或字段类型异常时返回 `0`。
  */
 const currentTouchPoints = (): number => {
-	const maxTouchPoints: unknown = runtimeGlobals.navigator?.maxTouchPoints;
+	const maxTouchPoints: unknown = typeof navigator === "undefined" ? undefined : navigator.maxTouchPoints;
 	return typeof maxTouchPoints === "number" ? maxTouchPoints : 0;
 };
 
@@ -28,7 +26,7 @@ const currentTouchPoints = (): number => {
  * @returns 两项能力均存在时返回 `true`；不读取 DOM 内容。
  */
 export function isBrowser(): boolean {
-	return runtimeGlobals.window?.document !== undefined;
+	return typeof window !== "undefined" && window.document !== undefined;
 }
 
 /**
@@ -39,7 +37,7 @@ export function isBrowser(): boolean {
  * @returns 具有 `importScripts` 且不是浏览器 Window 时返回 `true`。
  */
 export function isWebWorker(): boolean {
-	return !isBrowser() && typeof runtimeGlobals.importScripts === "function";
+	return !isBrowser() && typeof importScripts === "function";
 }
 
 /**
@@ -48,20 +46,18 @@ export function isWebWorker(): boolean {
  * @returns `process.versions.node` 为字符串时返回 `true`。
  */
 export function isNode(): boolean {
-	const process = runtimeGlobals.process;
 	if ((typeof process !== "object" && typeof process !== "function") || process === null) return false;
-	const versions: unknown = (process as { versions?: unknown }).versions;
-	if ((typeof versions !== "object" && typeof versions !== "function") || versions === null) return false;
-	return typeof (versions as { node?: unknown }).node === "string";
+	if ((typeof process.versions !== "object" && typeof process.versions !== "function") || process.versions === null) return false;
+	return typeof process.versions.node === "string";
 }
 
 /**
  * 判断当前运行时是否暴露 uni-app 的 `uni` 运行时对象。
  *
- * @returns `uni` 标识符或兼容全局属性存在时返回 `true`；不调用任何平台 API。
+ * @returns `uni` 标识符存在时返回 `true`；不调用任何平台 API。
  */
 export function isUniApp(): boolean {
-	return getRuntimeUni() !== undefined;
+	return typeof uni !== "undefined";
 }
 
 /**
@@ -72,20 +68,19 @@ export function isUniApp(): boolean {
  * @returns 同时提供本库 Web Crypto 功能所需方法时返回 `true`。
  */
 export function hasWebCrypto(): boolean {
-	const crypto = runtimeGlobals.crypto;
-	const subtle = crypto?.subtle;
 	return (
+		typeof crypto !== "undefined" &&
 		typeof crypto?.getRandomValues === "function" &&
-		typeof subtle?.decrypt === "function" &&
-		typeof subtle.deriveBits === "function" &&
-		typeof subtle.deriveKey === "function" &&
-		typeof subtle.digest === "function" &&
-		typeof subtle.encrypt === "function" &&
-		typeof subtle.exportKey === "function" &&
-		typeof subtle.generateKey === "function" &&
-		typeof subtle.importKey === "function" &&
-		typeof subtle.sign === "function" &&
-		typeof subtle.verify === "function"
+		typeof crypto.subtle?.decrypt === "function" &&
+		typeof crypto.subtle.deriveBits === "function" &&
+		typeof crypto.subtle.deriveKey === "function" &&
+		typeof crypto.subtle.digest === "function" &&
+		typeof crypto.subtle.encrypt === "function" &&
+		typeof crypto.subtle.exportKey === "function" &&
+		typeof crypto.subtle.generateKey === "function" &&
+		typeof crypto.subtle.importKey === "function" &&
+		typeof crypto.subtle.sign === "function" &&
+		typeof crypto.subtle.verify === "function"
 	);
 }
 

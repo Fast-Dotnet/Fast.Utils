@@ -228,6 +228,30 @@ describe("Vue browser composables", () => {
 		}
 	});
 
+	it("tracks legacy media queries and removes their listeners on scope disposal", () => {
+		const listeners = new Set<() => void>();
+		const query = {
+			matches: false,
+			addListener: (listener: () => void) => listeners.add(listener),
+			removeListener: (listener: () => void) => listeners.delete(listener),
+		};
+		vi.stubGlobal("window", { matchMedia: () => query });
+		const scope = effectScope();
+		try {
+			const breakpoints = scope.run(() => useBreakpoints({ desktop: 1280 }));
+			expect(breakpoints?.desktop.value).toBe(false);
+			expect(listeners.size).toBe(1);
+			query.matches = true;
+			for (const listener of listeners) listener();
+			expect(breakpoints?.active().value).toBe("desktop");
+			scope.stop();
+			expect(listeners.size).toBe(0);
+		} finally {
+			scope.stop();
+			vi.unstubAllGlobals();
+		}
+	});
+
 	it("tracks native media queries and resolves the largest active breakpoint", () => {
 		class TestMediaQueryList extends EventTarget {
 			constructor(public matches: boolean) {
