@@ -125,13 +125,13 @@ const formatSplitValue = (value: unknown): string => {
 
 const defaultConsoleSink: LoggerSink = {
 	debug: (...data) => {
-		// eslint-disable-next-line no-console
+		// eslint-disable-next-line no-console -- 默认日志输出器需要直接调用控制台
 		if (typeof console.debug === "function") console.debug(...data);
-		// eslint-disable-next-line no-console
+		// eslint-disable-next-line no-console -- 默认日志输出器需要直接调用控制台
 		else console.log(...data);
 	},
 	log: (...data) => {
-		// eslint-disable-next-line no-console
+		// eslint-disable-next-line no-console -- 默认日志输出器需要直接调用控制台
 		console.log(...data);
 	},
 	warn: (...data) => {

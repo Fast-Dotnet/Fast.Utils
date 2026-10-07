@@ -1,4 +1,4 @@
-/** 统一同步返回值与 PromiseLike 返回值的内部回调签名。 */
+/** 统一同步返回值与 PromiseLike 返回值的内部回调签名 */
 type AsyncCallback<Arguments extends unknown[], Result> = (...arguments_: Arguments) => Result | PromiseLike<Result>;
 
 /** 记录同一防抖批次中每个调用方独立的 Promise 结算函数 */

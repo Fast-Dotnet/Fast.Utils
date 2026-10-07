@@ -1,4 +1,4 @@
-/** URL 查询参数支持的单值类型。 */
+/** URL 查询参数支持的单值类型 */
 export type QueryPrimitive = bigint | boolean | number | string | null | undefined;
 
 /** URL 查询参数值；数组使用重复键表示。 */
