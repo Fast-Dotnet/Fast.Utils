@@ -14,7 +14,7 @@
 
 A TypeScript utility SDK for modern browsers, WebViews, Vue 3 and uni-app.
 
-**[Documentation](http://docs.fastdotnet.cn/en-US/frontend/utils/) · [Official website](http://fastdotnet.com)**
+**[Documentation](https://docs.fastdotnet.cn/en-US/frontend/utils/) · [Official website](https://fastdotnet.com)**
 
 ## Highlights
 
@@ -87,8 +87,8 @@ SDK-generated error messages are in English. Branch on error types or names rath
 
 ## Documentation
 
-- [API reference](http://docs.fastdotnet.cn/en-US/frontend/utils/api/)
-- [Runtime contract](http://docs.fastdotnet.cn/en-US/frontend/utils/runtime-contract)
+- [API reference](https://docs.fastdotnet.cn/en-US/frontend/utils/api/)
+- [Runtime contract](https://docs.fastdotnet.cn/en-US/frontend/utils/runtime-contract)
 - [Development and release guide (Chinese)](./docs/DEVELOPMENT_RELEASE.zh-CN.md)
 - [Security policy](./SECURITY.md)
 - [Contributing guide](./CONTRIBUTING.md)
