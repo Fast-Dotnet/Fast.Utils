@@ -1,6 +1,6 @@
 {
 	"name": "@fast-china/utils",
-	"version": "2.1.11",
+	"version": "2.1.12",
 	"description": "Typed utilities for modern browsers, WebViews, Vue 3, and uni-app applications.",
 	"type": "module",
 	"keywords": [

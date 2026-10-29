@@ -134,6 +134,31 @@ describe("configured browser storage", () => {
 		expect(base64StorageCodec.decode(encoded)).toEqual({ value: "Fast" });
 		expect(() => base64StorageCodec.decode(encodeSecureBase64("not json"))).toThrow(SyntaxError);
 	});
+
+	it("rejects incomplete random prefixes before overwriting browser storage", (context) => {
+		const { local, session } = useBrowserStorage();
+		Local.set("prefix-error", { value: "original" });
+		Session.set("prefix-error", "original");
+		const localValue = local.getItem("test:prefix-error");
+		const sessionValue = session.getItem("test:prefix-error");
+		vi.stubGlobal("crypto", { getRandomValues: (values: Uint32Array) => values.fill(1) });
+		const nativeFloor = Math.floor;
+		// 模拟运行时算术异常产生的非法前缀索引，不替换编码器或存储实现。
+		context.mock.method(Math, "floor", (value: number) => (value === 1 / 52 ? Number.NaN : nativeFloor(value)));
+		expect(() => encodeSecureBase64("Fast")).toThrow("Unable to generate a valid random prefix.");
+		expect(() => Local.set("prefix-error", { value: "replacement" })).toThrow({
+			name: "TypeError",
+			cause: { message: "Unable to generate a valid random prefix." },
+		});
+		expect(() => Session.set("prefix-error", "replacement")).toThrow({
+			name: "TypeError",
+			cause: { message: "Unable to generate a valid random prefix." },
+		});
+		expect(local.getItem("test:prefix-error")).toBe(localValue);
+		expect(session.getItem("test:prefix-error")).toBe(sessionValue);
+		expect(Local.get("prefix-error")).toEqual({ value: "original" });
+		expect(Session.get("prefix-error")).toBe("original");
+	});
 });
 
 describe("installation identity", () => {

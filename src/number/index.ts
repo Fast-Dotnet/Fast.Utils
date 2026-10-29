@@ -252,5 +252,7 @@ export function randomInt(minimum: number, maximumExclusive: number): number {
 		else values[0] = Math.floor(Math.random() * uint32Range);
 		sample = values[0] ?? uint32Range;
 	} while (sample >= limit);
-	return minimum + (sample % range);
+	// 避开部分运行时的整数取模异常；sample 与 range 的整数范围保证此余数计算与取模等价。
+	const remainder = sample - Math.floor(sample / range) * range;
+	return minimum + remainder;
 }

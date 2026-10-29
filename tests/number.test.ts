@@ -1,6 +1,69 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
-import { formatBytes } from "../src/number/index";
+import { afterEach, test } from "node:test";
+import { formatBytes, randomInt } from "../src/number/index";
+import { vi } from "./test-helpers";
+
+afterEach(() => {
+	vi.unstubAllGlobals();
+});
+
+test("randomInt retains exact half-open bounds for both random sources", (context) => {
+	const uint32Range = 0x1_0000_0000;
+	let sample = 0;
+	context.mock.method(Math, "random", () => sample / uint32Range);
+	const ranges = [...Array.from({ length: 256 }, (_, index) => index + 1), 0x7fff_ffff, 0x8000_0000, 0x8000_0001, uint32Range - 1, uint32Range];
+	for (const useCrypto of [true, false]) {
+		vi.stubGlobal("crypto", useCrypto ? { getRandomValues: (values: Uint32Array) => values.fill(sample) } : undefined);
+		for (const range of ranges) {
+			const limit = Number((BigInt(uint32Range) / BigInt(range)) * BigInt(range));
+			for (const minimum of [0, -range, Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER - range]) {
+				for (sample of [0, 1, range - 1, range, limit - 1]) {
+					if (sample >= limit) continue;
+					const actual = randomInt(minimum, minimum + range);
+					assert.equal(actual, minimum + Number(BigInt(sample) % BigInt(range)));
+					assert.ok(Number.isSafeInteger(actual) && actual >= minimum && actual < minimum + range);
+				}
+			}
+		}
+	}
+});
+
+test("randomInt rejects the incomplete sample interval before mapping either random source", (context) => {
+	const samples = [0xffff_ffd0, 0xffff_ffff, 0xffff_ffcf];
+	for (const useCrypto of [true, false]) {
+		let calls = 0;
+		const nextSample = () => {
+			const sample = samples[calls];
+			assert.ok(sample !== undefined, "Rejection sampling must accept the third sample");
+			calls += 1;
+			return sample;
+		};
+		vi.stubGlobal("crypto", useCrypto ? { getRandomValues: (values: Uint32Array) => values.fill(nextSample()) } : undefined);
+		context.mock.method(Math, "random", () => nextSample() / 0x1_0000_0000);
+		assert.equal(randomInt(-26, 26), 25);
+		assert.equal(calls, 3);
+		context.mock.restoreAll();
+	}
+});
+
+test("randomInt rejects invalid bounds before requesting randomness", () => {
+	const getRandomValues = vi.fn();
+	vi.stubGlobal("crypto", { getRandomValues });
+	for (const [minimum, maximum] of [
+		[0, 0],
+		[1, 0],
+		[0.5, 1],
+		[0, 1.5],
+		[Number.NaN, 1],
+		[0, Number.POSITIVE_INFINITY],
+		[Number.MIN_SAFE_INTEGER - 1, 0],
+		[0, Number.MAX_SAFE_INTEGER + 1],
+		[0, 0x1_0000_0001],
+	] as const) {
+		assert.throws(() => randomInt(minimum, maximum), RangeError);
+	}
+	assert.equal(getRandomValues.mock.calls.length, 0);
+});
 
 test("formatBytes retains the byte unit for nonnegative fractional inputs", () => {
 	assert.equal(formatBytes(0), "0 B");

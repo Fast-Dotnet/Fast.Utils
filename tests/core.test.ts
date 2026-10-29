@@ -350,6 +350,29 @@ describe("Base64 utilities", () => {
 		const encoded = encodeSecureBase64("Fast");
 		expect(decodeSecureBase64(encoded)).toBe("Fast");
 	});
+
+	it("preserves exact SecureBase64 prefix lengths and round trips with either random source", (context) => {
+		let sample = 0;
+		context.mock.method(Math, "random", () => sample / 0x1_0000_0000);
+		for (const useCrypto of [true, false]) {
+			vi.stubGlobal("crypto", useCrypto ? { getRandomValues: (values: Uint32Array) => values.fill(sample) } : undefined);
+			for (const [nextSample, expectedCharacter] of [
+				[0, "A"],
+				[51, "z"],
+				[52, "A"],
+				[0xffff_ffcf, "z"],
+			] as const) {
+				sample = nextSample;
+				for (const prefixLength of [0, 1, 6, 12]) {
+					const text = "Fast 工具库 🚀";
+					const encoded = encodeSecureBase64(text, prefixLength);
+					expect(encoded.slice(0, prefixLength)).toBe(expectedCharacter.repeat(prefixLength));
+					expect(decodeSecureBase64(encoded, prefixLength)).toBe(text);
+					if (prefixLength === 6) expect(encodeSecureBase64(text)).toBe(encoded);
+				}
+			}
+		}
+	});
 });
 
 describe("number utilities", () => {

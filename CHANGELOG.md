@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and releases should follow [Semantic Versioning](https://semver.org/).
 
+## [2.1.12] - 2026-10-29
+
+### Fixed
+
+- Calculate `randomInt` remainders with integer quotient subtraction to avoid runtime integer-remainder issues, preserving argument validation, random sources, rejection sampling, and the half-open interval contract.
+- Throw when SecureBase64 cannot generate a complete random prefix instead of silently omitting characters, preventing failed encoding from overwriting stored values. The default six-character prefix, compatibility dictionary, and cache format remain unchanged; already damaged entries still require application-level recovery.
+
 ## [2.1.11] - 2026-10-07
 
 ### Fixed
@@ -176,6 +183,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - Added authenticated ciphertext validation, bounded crypto parameters and payloads, unbiased Web Crypto randomness, prototype-safe query/object transforms, and namespace-scoped Storage cleanup.
 
+[2.1.12]: https://gitee.com/FastDotnet/fast.utils/compare/v2.1.11...v2.1.12
 [2.1.11]: https://gitee.com/FastDotnet/fast.utils/compare/v2.1.10...v2.1.11
 [2.1.10]: https://gitee.com/FastDotnet/fast.utils/compare/v2.1.9...v2.1.10
 [2.1.9]: https://gitee.com/FastDotnet/fast.utils/compare/v2.1.8...v2.1.9

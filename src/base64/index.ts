@@ -294,7 +294,11 @@ const assertPrefixLength = (length: number): void => {
 const createRandomPrefix = (length: number): string => {
 	let result = "";
 	for (let index = 0; index < length; index += 1) {
-		result += randomPrefixAlphabet[randomInt(0, randomPrefixAlphabet.length)] ?? "";
+		const character = randomPrefixAlphabet[randomInt(0, randomPrefixAlphabet.length)];
+		if (character === undefined) {
+			throw new Error("Unable to generate a valid random prefix.");
+		}
+		result += character;
 	}
 	return result;
 };
@@ -342,6 +346,7 @@ const removeDictionaryCharacters = (base64Value: string): string => {
  * @param prefixLength - 随机字母前缀长度；默认 `6`
  * @returns 带随机前缀和兼容字典字符的 Base64 文本；空输入返回空字符串。
  * @throws `RangeError` 当前缀长度不是非负安全整数；输入包含孤立代理项时保留平台错误。
+ * @throws `Error` 当随机索引异常，无法生成完整前缀；不返回缺失前缀字符的载荷。
  */
 export function encodeSecureBase64(value: string, prefixLength: number = defaultRandomPrefixLength): string {
 	if (value.length === 0) return "";
